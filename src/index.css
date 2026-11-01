@@ -1,0 +1,174 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   SANTOS SMASH BURGERS — SISTEMA DE DISEÑO (réplica de alfajorconpapas.com)
+   Paleta: verde profundo #083821 · coral #eb623a · crema #f2eee2 · arena #e8e1d5
+   ========================================================================== */
+
+@theme {
+  --color-ink: #083821;
+  --color-ink-deep: #042415;
+  --color-accent: #eb623a;
+  --color-cream: #f2eee2;
+  --color-sand: #e8e1d5;
+  --color-surface: #f2eee2;
+  --color-background: #f2eee2;
+  --color-card: #fbf9f3;
+  --color-menu-bg: #083821;
+  
+  --font-display: 'Barlow Condensed', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-script: 'Pacifico', cursive;
+}
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  html, body {
+    scroll-behavior: smooth;
+    background-color: #f2eee2;
+    color: #083821;
+    touch-action: manipulation;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+  }
+
+  body {
+    font-family: var(--font-body);
+    overflow-x: hidden;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  ::selection {
+    background-color: rgba(235, 98, 58, 0.25);
+    color: #083821;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #f2eee2;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #083821;
+    border-radius: 9999px;
+    border: 3px solid #f2eee2;
+  }
+}
+
+@layer components {
+  /* ---------------------------------------------------------------------
+     TIPOGRAFÍAS
+     --------------------------------------------------------------------- */
+  .font-santos,
+  .font-heading,
+  .font-barlow {
+    font-family: var(--font-display);
+    font-weight: 900;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+  }
+
+  .font-script {
+    font-family: var(--font-script);
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+
+  .font-sans,
+  .menu-delivery {
+    font-family: var(--font-body);
+    font-weight: 400;
+    letter-spacing: normal;
+    text-transform: none;
+  }
+
+  /* ---------------------------------------------------------------------
+     SOMBRAS SUAVES (reemplazan las sombras duras tipo cómic)
+     --------------------------------------------------------------------- */
+  .shadow-diner {
+    box-shadow: 0 18px 40px -22px rgba(8, 56, 33, 0.55);
+  }
+  .shadow-diner-sm {
+    box-shadow: 0 10px 24px -14px rgba(8, 56, 33, 0.45);
+  }
+  .shadow-diner-hover:hover {
+    box-shadow: 0 26px 50px -22px rgba(8, 56, 33, 0.6);
+  }
+  .shadow-diner-active:active {
+    box-shadow: 0 6px 14px -10px rgba(8, 56, 33, 0.5);
+  }
+
+  /* ---------------------------------------------------------------------
+     MARQUESINA INCLINADA (idéntica a la referencia)
+     --------------------------------------------------------------------- */
+  .santos-marquesina,
+  .alfajor-marquesina {
+    animation: 32s linear infinite santos-marquesina;
+    will-change: transform;
+  }
+
+  /* Divisor de arco (bumps que conectan con el footer) */
+  .santos-arc {
+    height: 14px;
+    width: 100%;
+    background-image: radial-gradient(circle at 50% 100%, #083821 14px, transparent 15px);
+    background-size: 28px 14px;
+    background-repeat: repeat-x;
+  }
+
+  /* Textura de micropuntos */
+  .santos-dots {
+    background-image: radial-gradient(rgba(242, 238, 226, 0.15) 1.5px, transparent 1.5px);
+    background-size: 20px 20px;
+  }
+
+  /* Entrada de modales / paneles */
+  .animate-fadeIn {
+    animation: santosFadeIn 0.22s ease-out both;
+  }
+
+  /* Ocultar barra de scroll en carruseles táctiles */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@keyframes santos-marquesina {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes santosFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .santos-marquesina,
+  .alfajor-marquesina {
+    animation-duration: 120s;
+  }
+}

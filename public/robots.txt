@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://santos-smash-burgers.vercel.app/sitemap.xml
