@@ -1,13 +1,17 @@
 // src/lib/supabase.js
 import { createClient } from '@supabase/supabase-js';
-import { INITIAL_MENU, DEFAULT_CATEGORIES } from '../data/menu';
+import { INITIAL_MENU, DEFAULT_CATEGORIES, AVAILABLE_TOPPINGS } from '../data/menu';
 import { BUSINESS_CONFIG } from '../data/business';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+// Credenciales con respaldo directo para que Cloudflare Pages conecte siempre
+const supabaseUrl = 
+  import.meta.env.VITE_SUPABASE_URL || 
+  'https://cujvhsyjzfpinivynnaj.supabase.co';
+
 const supabaseAnonKey = 
   import.meta.env.VITE_SUPABASE_ANON_KEY || 
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 
-  '';
+  'sb_publishable_-Zyf1IAZ3yN0u8K9849HCA_FxujGN-H';
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl && 
@@ -50,7 +54,6 @@ function normalizeProduct(p, index = 0) {
   };
 }
 
-// Mapea un producto normalizado (camelCase) a las columnas reales de la tabla
 function toDbProduct(product) {
   const p = normalizeProduct(product);
   return {
@@ -98,6 +101,7 @@ function defaultSettings() {
     takeaway_time: BUSINESS_CONFIG.takeawayTime,
     schedule: BUSINESS_CONFIG.schedule,
     categories: DEFAULT_CATEGORIES,
+    toppings: AVAILABLE_TOPPINGS,
     is_manual_closed: false,
     titular: BUSINESS_CONFIG.banking.titular,
     bank_name: BUSINESS_CONFIG.banking.bankName,
@@ -105,7 +109,6 @@ function defaultSettings() {
     cvu: BUSINESS_CONFIG.banking.cvu,
     cuit: BUSINESS_CONFIG.banking.cuit,
     whatsapp: BUSINESS_CONFIG.banking.whatsappKitchen,
-    toppings: AVAILABLE_TOPPINGS, // <--- AGREGAR ESTA LÍNEA
     admin_password: 'santos2026'
   };
 }
@@ -129,7 +132,6 @@ function writeLocalSettings(settings) {
   );
 }
 
-// Columnas reales de la tabla `santos_settings` (evita enviar campos inválidos)
 const SETTINGS_COLUMNS = [
   'id', 'name', 'address', 'city', 'instagram', 'delivery_time', 'takeaway_time',
   'schedule', 'categories', 'toppings', 'is_manual_closed', 'titular', 'bank_name', 'alias',
@@ -149,22 +151,21 @@ function pickSettings(source) {
 // =========================================================================
 let seedAttempted = false;
 
-// Si la tabla existe pero está vacía, sembramos el menú base para que la web
-// pública y el panel de administración trabajen siempre sobre los mismos datos.
 async function seedMenuProducts() {
   if (!supabase || seedAttempted) return null;
   seedAttempted = true;
   try {
+    const initial = readLocalProducts();
     const { error } = await supabase
       .from('santos_products')
-      .insert(INITIAL_MENU.map(toDbProduct));
+      .upsert(initial.map(toDbProduct), { onConflict: 'id' });
 
     if (error) {
       console.error('No se pudo sembrar el menú inicial en Supabase:', error);
       seedAttempted = false;
       return null;
     }
-    return INITIAL_MENU.map(normalizeProduct);
+    return initial;
   } catch (err) {
     console.error('Error sembrando el menú inicial en Supabase:', err);
     seedAttempted = false;
@@ -191,22 +192,7 @@ export async function getMenuProducts() {
       return { data: seeded || readLocalProducts(), error: null };
     }
 
-    const normalized = data.map(p => ({
-      id: String(p.id),
-      title: p.title || '',
-      category: p.category || 'favoritos',
-      price: Number(p.price || 0),
-      originalPrice: p.original_price ? Number(p.original_price) : null,
-      badge: p.badge || null,
-      tagline: p.tagline || '',
-      description: p.description || '',
-      ingredients: Array.isArray(p.ingredients) ? p.ingredients : [],
-      allowsToppings: Boolean(p.allows_toppings ?? true),
-      toppingsIds: Array.isArray(p.toppings_ids) ? p.toppings_ids : [],
-      isOutOfStock: Boolean(p.is_out_of_stock ?? false),
-      image: p.image || ''
-    }));
-
+    const normalized = data.map(normalizeProduct);
     writeLocalProducts(normalized);
     return { data: normalized, error: null };
   } catch (err) {
@@ -219,7 +205,6 @@ export async function upsertMenuProduct(product) {
   const normalized = normalizeProduct(product);
   const dbPayload = toDbProduct(normalized);
 
-  // Guardado local inmediato (funciona incluso sin conexión)
   const current = readLocalProducts();
   const idx = current.findIndex(p => String(p.id) === String(normalized.id));
   const updated = idx >= 0
@@ -279,7 +264,10 @@ export async function getStoreSettings() {
       console.warn('Error consultando ajustes en Supabase:', error);
       return { data: readLocalSettings(), error };
     }
+
     if (!data) {
+      const initialSettings = pickSettings(readLocalSettings());
+      await supabase.from('santos_settings').upsert({ ...initialSettings, id: 1 });
       return { data: readLocalSettings(), error: null };
     }
 
@@ -292,13 +280,10 @@ export async function getStoreSettings() {
   }
 }
 
-/**
- * Actualizar ajustes del negocio garantizado (Guarda localmente y en Supabase)
- */
 export async function updateStoreSettings(settings) {
-  writeLocalSettings(settings);
+  const merged = { ...readLocalSettings(), ...settings, id: 1 };
+  writeLocalSettings(merged);
 
-  // Guardar también llaves directas de categorías y toppings para persistencia instantánea
   if (canUseStorage()) {
     if (settings.categories) {
       localStorage.setItem('santos_categories', JSON.stringify(settings.categories));
@@ -311,24 +296,15 @@ export async function updateStoreSettings(settings) {
   if (!supabase) return { success: true, error: null };
 
   try {
-    // 1. Intentar update puntual en Supabase (solo modifica la columna enviada)
-    let { data, error } = await supabase
+    const payload = pickSettings(merged);
+    const { error } = await supabase
       .from('santos_settings')
-      .update(settings)
-      .eq('id', 1)
-      .select();
-
-    // 2. Si la fila 1 no existía, crearla completa
-    if (!error && (!data || data.length === 0)) {
-      const fullRow = { ...readLocalSettings(), ...settings, id: 1 };
-      const res = await supabase.from('santos_settings').upsert(fullRow).select();
-      error = res.error;
-    }
+      .upsert({ ...payload, id: 1 }, { onConflict: 'id' });
 
     if (error) console.error('Error guardando settings en Supabase:', error);
     return { success: !error, error };
   } catch (err) {
     console.error('Error en updateStoreSettings:', err);
-    return { success: true, error: err };
+    return { success: false, error: err };
   }
 }
