@@ -1,6 +1,13 @@
 // src/data/menu.js
 // Catálogo gastronómico oficial de Santos Smash Burgers (solo comida)
-
+export const DEFAULT_CATEGORIES = [
+  { id: 'favoritos', label: 'Favoritos Santos' },
+  { id: 'con-papas', label: 'Smash con Papas' },
+  { id: 'sin-papas', label: 'Smash sin Papas' },
+  { id: 'cajas-combos', label: 'Cajas & Combos' },
+  { id: 'papas', label: 'Papas Fritas' },
+  { id: 'bebidas', label: 'Bebidas' },
+];
 export const MENU_CATEGORIES = [
   { id: 'todos', label: 'Todo el menú', icon: 'Flame' },
   { id: 'favoritos', label: 'Favoritos Santos', icon: 'Star' },

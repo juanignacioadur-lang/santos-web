@@ -1,6 +1,4 @@
 // src/App.jsx
-// Orquestador maestro de Santos Smash Burgers — réplica de alfajorconpapas.com
-
 import React, { useState, useEffect } from 'react';
 
 // Componentes
@@ -12,105 +10,204 @@ import ProductCard from './components/ProductCard';
 import CustomizerModal from './components/CustomizerModal';
 import CartDrawer from './components/CartDrawer';
 import CheckoutModal from './components/CheckoutModal';
+import FloatingCartBar from './components/FloatingCartBar';
 import Footer from './components/Footer';
 import AdminDashboard from './components/admin/AdminDashboard';
+import CookieBanner from './components/CookieBanner';
 
 // Datos y utilidades
-import { INITIAL_MENU, MENU_CATEGORIES } from './data/menu';
+import { INITIAL_MENU, DEFAULT_CATEGORIES, AVAILABLE_TOPPINGS } from './data/menu';
 import { BUSINESS_CONFIG } from './data/business';
 import { getMenuProducts, getStoreSettings } from './lib/supabase';
+import { SearchX, UtensilsCrossed, Bike, CreditCard, Flame, MessageCircle } from 'lucide-react';
 
-// Iconos
-import {
-  MessageCircle, SearchX, UtensilsCrossed, Bike, CreditCard, BellRing
-} from 'lucide-react';
-
-// Categorías reales (sin la píldora "Todo")
-const REAL_CATEGORIES = MENU_CATEGORIES.filter((c) => c.id !== 'todos');
-
-// Pasos del "¿Cómo funciona?" (réplica de la referencia)
-const STEPS = [
-  { icon: UtensilsCrossed, title: 'Explorá el menú', description: 'Mirá todos los productos disponibles con fotos y precios' },
-  { icon: Bike, title: 'Delivery o takeaway', description: 'Pedí a domicilio o retirá en el local, como prefieras' },
-  { icon: CreditCard, title: 'Pagá online', description: 'Pagá de forma segura con transferencia, tarjeta o efectivo' },
-  { icon: BellRing, title: 'Seguí tu pedido', description: 'Te avisamos en tiempo real cuando tu pedido está listo' },
-];
-
-// Encabezado numerado de categoría (réplica exacta de la captura)
 function CategoryHeader({ index, title, detail }) {
   return (
-    <div className="space-y-3">
-      <div className="flex items-end gap-3">
-        <span className="font-barlow mb-0.5 shrink-0 grid place-items-center rounded-[7px] bg-accent px-1.5 py-1 text-[18px] leading-none text-ink tabular-nums shadow-lg">
-        {String(index).padStart(2, '0')}
+    <div className="space-y-2.5">
+      <div className="flex items-end gap-3 text-left">
+        <span className="font-santos mb-0.5 shrink-0 grid place-items-center rounded-[7px] bg-[#f5b82e] px-2 py-0.5 text-[15px] leading-none text-[#083821] tabular-nums font-black shadow-sm">
+          {String(index).padStart(2, '0')}
         </span>
-        <h2 className="font-santos min-w-0 flex-1 break-words text-[34px] uppercase leading-[0.92] text-cream sm:text-[46px]">
+        <h2 className="font-santos min-w-0 flex-1 break-words text-[28px] sm:text-[38px] uppercase leading-[0.9] text-white">
           {title}
         </h2>
         {detail && (
-          <span className="shrink-0 pb-1 text-[10px] font-black uppercase tracking-[0.28em] text-cream/55">
+          <span className="shrink-0 pb-1 text-[10px] font-black uppercase tracking-[0.25em] text-white/50">
             {detail}
           </span>
         )}
       </div>
-      <div className="h-px w-full bg-cream/20" />
+      <div className="h-px w-full bg-white/10" />
     </div>
   );
 }
 
 export default function App() {
-  // Estado del menú
   const [products, setProducts] = useState(INITIAL_MENU);
   const [selectedCategory, setSelectedCategory] = useState('todos');
   const [isAdminView, setIsAdminView] = useState(false);
+  const [isCookieModalOpen, setIsCookieModalOpen] = useState(false);
 
-  // Carrito con persistencia local
+  // 1. Categorías con memoria inmediata
+  const [categories, setCategories] = useState(() => {
+    try {
+      const direct = localStorage.getItem('santos_categories');
+      if (direct) {
+        const parsed = JSON.parse(direct);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      const saved = localStorage.getItem('santos_store_settings');
+      if (saved) {
+        const p = JSON.parse(saved);
+        if (Array.isArray(p.categories) && p.categories.length > 0) return p.categories;
+      }
+    } catch {}
+    return DEFAULT_CATEGORIES;
+  });
+
+  // 2. Toppings con memoria inmediata
+  const [toppings, setToppings] = useState(() => {
+    try {
+      const direct = localStorage.getItem('santos_toppings');
+      if (direct) {
+        const parsed = JSON.parse(direct);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      const saved = localStorage.getItem('santos_store_settings');
+      if (saved) {
+        const p = JSON.parse(saved);
+        if (Array.isArray(p.toppings) && p.toppings.length > 0) return p.toppings;
+      }
+    } catch {}
+    return AVAILABLE_TOPPINGS;
+  });
+
   const [cart, setCart] = useState(() => {
     const saved = localStorage.getItem('santos_cart');
     if (saved) {
-      try { return JSON.parse(saved); } catch { /* usa carrito vacío */ }
+      try { return JSON.parse(saved); } catch {}
     }
     return [];
   });
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  // Modales
   const [customizingProduct, setCustomizingProduct] = useState(null);
   const [checkoutOrderSummary, setCheckoutOrderSummary] = useState(null);
-  // Cambia en cada apertura del checkout para reiniciar su asistente interno
   const [checkoutKey, setCheckoutKey] = useState(0);
 
-  // Configuración de negocio dinámica
-  const [businessInfo, setBusinessInfo] = useState({
-    name: BUSINESS_CONFIG.name,
-    address: BUSINESS_CONFIG.address,
-    city: BUSINESS_CONFIG.city,
-    instagram: BUSINESS_CONFIG.instagram,
-    deliveryTime: BUSINESS_CONFIG.deliveryTime,
-    takeawayTime: BUSINESS_CONFIG.takeawayTime,
-    schedule: BUSINESS_CONFIG.schedule,
-    isManualClosed: false
+  // 3. Datos del local con memoria inmediata
+  const [businessInfo, setBusinessInfo] = useState(() => {
+    try {
+      const saved = localStorage.getItem('santos_store_settings');
+      if (saved) {
+        const p = JSON.parse(saved);
+        if (p.address) {
+          return {
+            name: p.name || BUSINESS_CONFIG.name,
+            address: p.address,
+            city: p.city || BUSINESS_CONFIG.city,
+            instagram: p.instagram || BUSINESS_CONFIG.instagram,
+            deliveryTime: p.delivery_time || p.deliveryTime || BUSINESS_CONFIG.deliveryTime,
+            takeawayTime: p.takeaway_time || p.takeawayTime || BUSINESS_CONFIG.takeawayTime,
+            schedule: p.schedule || BUSINESS_CONFIG.schedule,
+            isManualClosed: Boolean(p.is_manual_closed ?? p.isManualClosed)
+          };
+        }
+      }
+    } catch {}
+    return {
+      name: BUSINESS_CONFIG.name,
+      address: "González 80, Villa Carlos Paz, Córdoba",
+      city: "Villa Carlos Paz, Córdoba",
+      instagram: "https://instagram.com/santos.foodclub",
+      deliveryTime: BUSINESS_CONFIG.deliveryTime,
+      takeawayTime: BUSINESS_CONFIG.takeawayTime,
+      schedule: BUSINESS_CONFIG.schedule,
+      isManualClosed: false
+    };
   });
 
-  // Configuración bancaria y clave admin
-  const [bankingInfo, setBankingInfo] = useState(BUSINESS_CONFIG.banking);
-  const [adminPassword, setAdminPassword] = useState('santos2026');
+  // 4. Datos bancarios con memoria inmediata
+  const [bankingInfo, setBankingInfo] = useState(() => {
+    try {
+      const saved = localStorage.getItem('santos_store_settings');
+      if (saved) {
+        const p = JSON.parse(saved);
+        if (p.alias || p.cvu) {
+          return {
+            titular: p.titular || BUSINESS_CONFIG.banking.titular,
+            bankName: p.bank_name || p.bankName || BUSINESS_CONFIG.banking.bankName,
+            alias: p.alias || BUSINESS_CONFIG.banking.alias,
+            cvu: p.cvu || BUSINESS_CONFIG.banking.cvu,
+            cuit: p.cuit || BUSINESS_CONFIG.banking.cuit,
+            whatsappKitchen: p.whatsapp || p.whatsappKitchen || BUSINESS_CONFIG.banking.whatsappKitchen
+          };
+        }
+      }
+    } catch {}
+    return BUSINESS_CONFIG.banking;
+  });
+
+  // 5. Clave maestra con memoria inmediata
+  const [adminPassword, setAdminPassword] = useState(() => {
+    try {
+      const directPwd = localStorage.getItem('santos_admin_pwd');
+      if (directPwd) return directPwd;
+      const saved = localStorage.getItem('santos_store_settings');
+      if (saved) {
+        const p = JSON.parse(saved);
+        if (p.admin_password) return p.admin_password;
+      }
+    } catch {}
+    return 'santos2026';
+  });
+
+  const handleUpdatePassword = (newPwd) => {
+    setAdminPassword(newPwd);
+    localStorage.setItem('santos_admin_pwd', newPwd);
+  };
+
+  const handleUpdateCategories = (newCats) => {
+    setCategories(newCats);
+    localStorage.setItem('santos_categories', JSON.stringify(newCats));
+  };
+
+  const handleUpdateToppings = (newTops) => {
+    setToppings(newTops);
+    localStorage.setItem('santos_toppings', JSON.stringify(newTops));
+  };
 
   useEffect(() => {
     localStorage.setItem('santos_cart', JSON.stringify(cart));
   }, [cart]);
 
-  // Carga desde Supabase (si está configurado)
+  // Carga segura desde Supabase (Orden correcto de variables)
   useEffect(() => {
     const loadCloudData = async () => {
+      // 1. Cargar productos
       const { data: cloudProducts } = await getMenuProducts();
-      if (cloudProducts && Array.isArray(cloudProducts)) {
+      if (cloudProducts && Array.isArray(cloudProducts) && cloudProducts.length > 0) {
         setProducts(cloudProducts);
       }
 
+      // 2. Cargar configuraciones de la tienda (declaración antes de su uso)
       const { data: cloudSettings } = await getStoreSettings();
       if (cloudSettings) {
-        // Cargar datos bancarios
+        if (cloudSettings.categories && Array.isArray(cloudSettings.categories) && cloudSettings.categories.length > 0) {
+          setCategories(cloudSettings.categories);
+          localStorage.setItem('santos_categories', JSON.stringify(cloudSettings.categories));
+        }
+
+        if (cloudSettings.toppings && Array.isArray(cloudSettings.toppings) && cloudSettings.toppings.length > 0) {
+          setToppings(cloudSettings.toppings);
+          localStorage.setItem('santos_toppings', JSON.stringify(cloudSettings.toppings));
+        }
+
+        if (cloudSettings.admin_password) {
+          setAdminPassword(cloudSettings.admin_password);
+          localStorage.setItem('santos_admin_pwd', cloudSettings.admin_password);
+        }
+
         setBankingInfo({
           titular: cloudSettings.titular || BUSINESS_CONFIG.banking.titular,
           bankName: cloudSettings.bank_name || BUSINESS_CONFIG.banking.bankName,
@@ -120,7 +217,6 @@ export default function App() {
           whatsappKitchen: cloudSettings.whatsapp || BUSINESS_CONFIG.banking.whatsappKitchen
         });
         
-        // Cargar datos de negocio
         setBusinessInfo({
           name: cloudSettings.name || BUSINESS_CONFIG.name,
           address: cloudSettings.address || BUSINESS_CONFIG.address,
@@ -131,16 +227,12 @@ export default function App() {
           schedule: cloudSettings.schedule || BUSINESS_CONFIG.schedule,
           isManualClosed: Boolean(cloudSettings.is_manual_closed)
         });
-
-        if (cloudSettings.admin_password) setAdminPassword(cloudSettings.admin_password);
       }
     };
+
     loadCloudData();
   }, []);
 
-  // =========================================================================
-  // CARRITO
-  // =========================================================================
   const handleAddCustomizedToCart = (customizedItem) => {
     setCart((prev) => [customizedItem, ...prev]);
     setIsCartOpen(true);
@@ -169,7 +261,6 @@ export default function App() {
       };
       return [newItem, ...prev];
     });
-    setIsCartOpen(true);
   };
 
   const handleUpdateQuantity = (cartItemId, newQty) => {
@@ -193,9 +284,6 @@ export default function App() {
     setCheckoutOrderSummary(null);
   };
 
-  // =========================================================================
-  // ADMIN
-  // =========================================================================
   const handleProductListUpdate = (newProduct, deletedId) => {
     if (newProduct) {
       setProducts((prev) => {
@@ -208,38 +296,26 @@ export default function App() {
     }
   };
 
-  // Derivados
   const filteredProducts = selectedCategory === 'todos'
     ? products
     : products.filter((p) => p.category === selectedCategory);
 
-  const activeCategory = MENU_CATEGORIES.find((c) => c.id === selectedCategory) || MENU_CATEGORIES[0];
-  const activeCategoryIndex = Math.max(1, REAL_CATEGORIES.findIndex((c) => c.id === selectedCategory) + 1);
+  const activeCategory = categories.find((c) => c.id === selectedCategory) || { label: 'Menú' };
+  const activeCategoryIndex = Math.max(1, categories.findIndex((c) => c.id === selectedCategory) + 1);
 
-  const cartTotalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
-  const cartGrandTotal = cart.reduce(
-    (acc, item) => acc + (item.unitPrice || item.price || 0) * item.quantity,
-    0
-  );
+  const cartTotalItems = Array.isArray(cart) 
+    ? cart.reduce((acc, item) => acc + Number(item?.quantity || 1), 0) 
+    : 0;
 
-  // Grilla de productos (carrusel en móvil, grid en desktop)
-  const renderCards = (items, fullWidth = false) => (
-    <>
-      {items.map((product) => (
-        <ProductCard
-          key={product.id}
-          product={product}
-          onOpenCustomizer={setCustomizingProduct}
-          onQuickAdd={handleQuickAddToCart}
-          fullWidth={fullWidth}
-        />
-      ))}
-    </>
-  );
+  const cartGrandTotal = Array.isArray(cart) 
+    ? cart.reduce((acc, item) => acc + Number(item?.unitPrice || item?.price || item?.totalPrice || 0) * Number(item?.quantity || 1), 0) 
+    : 0;
+
+  const cleanWhatsappPhone = (bankingInfo?.whatsappKitchen || '').replace(/[^0-9]/g, '');
+  const isAnyModalOpen = isCartOpen || Boolean(customizingProduct) || Boolean(checkoutOrderSummary) || isCookieModalOpen;
 
   return (
-    <div className="menu-delivery min-h-screen bg-background text-ink antialiased overflow-x-hidden">
-
+    <div className="min-h-screen bg-[#f2eee2] text-[#083821] antialiased overflow-x-hidden flex flex-col">
       <HeaderNavbar
         cartCount={cartTotalItems}
         cartTotal={cartGrandTotal}
@@ -250,7 +326,7 @@ export default function App() {
       />
 
       {isAdminView ? (
-        <main className="min-h-[85vh] bg-background">
+        <main className="flex-1 bg-[#f2eee2]">
           <AdminDashboard
             products={products}
             onRefreshProducts={handleProductListUpdate}
@@ -258,130 +334,229 @@ export default function App() {
             onUpdateBankingInfo={setBankingInfo}
             businessInfo={businessInfo}
             onUpdateBusinessInfo={setBusinessInfo}
+            categories={categories}
+            onUpdateCategories={handleUpdateCategories}
+            toppings={toppings}
+            onUpdateToppings={handleUpdateToppings}
             adminPassword={adminPassword}
-            onUpdatePassword={setAdminPassword}
+            onUpdatePassword={handleUpdatePassword}
             onExitAdmin={() => setIsAdminView(false)}
           />
         </main>
       ) : (
-        <>
+        <main className="flex-1">
           {/* HERO */}
           <HeroSection />
 
-          {/* SECCIÓN MENÚ Y CONTENIDO — La marquesina y el fondo verde son un solo bloque inclinado */}
-          <div
-            className="relative z-10 -mt-5 bg-menu-bg md:-mt-7"
-            style={{ 
-              transform: 'skewY(-2deg)', 
-              transformOrigin: 'top left' 
-            }}
-          >
-            {/* Marquesina pegada al borde superior del bloque inclinado */}
-            <MarqueeTicker className="border-b border-cream/10" />
+          {/* CONTENEDOR DEL MENÚ */}
+          <div className="relative bg-[#083821] text-white">
 
-            {/* Contenedor interno que revierte el skew para que el contenido sea recto */}
-            <div 
-              style={{ 
-                transform: 'skewY(2deg)',
-                transformOrigin: 'top left'
-              }}
-            >
-              <div className="mx-auto max-w-2xl px-5 pt-12 pb-16 lg:max-w-5xl xl:max-w-6xl">
-                <CategoryPills
-                  selectedCategory={selectedCategory}
-                  onSelectCategory={setSelectedCategory}
-                />
+            {/* CINTA INCLINADA */}
+            <div className="relative -top-10 sm:-top-14 z-20 overflow-hidden w-[106%] -left-[3%] -rotate-2 bg-[#083821] shadow-[0_6px_16px_rgba(0,0,0,0.22)]">
+              <MarqueeTicker />
+            </div>
+           {/* 🍕🍔🍟 PATRÓN DOODLE DISPERSO EN EL FONDO (Colocar justo aquí) */}
+            <div className="santos-food-pattern pointer-events-none absolute inset-0 z-0 opacity-40" aria-hidden="true" />
 
-                <section id="menu-section" className="mt-10 min-h-[50vh] space-y-18 scroll-mt-20 lg:mt-12 lg:space-y-20">
-                  {products.length === 0 ? (
-                    <div className="mx-auto max-w-md rounded-3xl bg-cream/5 p-10 text-center">
-                      <SearchX className="mx-auto mb-3 size-10 text-accent" />
-                      <h3 className="font-santos text-lg uppercase text-cream">No hay opciones disponibles</h3>
-                      <p className="mt-2 text-xs text-cream/40">Estamos actualizando el menú. Volvé en un rato.</p>
-                    </div>
-                  ) : selectedCategory === 'todos' ? (
-                    REAL_CATEGORIES.map((cat, idx) => {
-                      const items = products.filter((p) => p.category === cat.id);
-                      if (items.length === 0) return null;
+            {/* Píldoras de Categorías Dinámicas */}
+            <div className="mx-auto max-w-6xl px-5 sm:px-8 pt-2 sm:pt-4 pb-14">
+              <CategoryPills
+                selectedCategory={selectedCategory}
+                onSelectCategory={setSelectedCategory}
+                categories={categories}
+              />
 
-                      return (
-                        <div key={cat.id} className="space-y-8">
-                          <CategoryHeader
-                            index={idx + 1}
-                            title={cat.label}
-                            detail={`${items.length} ${items.length === 1 ? 'opción' : 'opciones'}`}
-                          />
+              <section id="menu-section" className="mt-8 space-y-12 scroll-mt-20">
+                {products.length === 0 ? (
+                  <div className="mx-auto max-w-md rounded-3xl bg-white/5 p-10 text-center">
+                    <SearchX className="mx-auto mb-3 size-10 text-[#f5b82e]" />
+                    <h3 className="font-santos text-lg uppercase text-white">No hay platos disponibles</h3>
+                  </div>
+                ) : selectedCategory === 'todos' ? (
+                  categories.map((cat, idx) => {
+                    const items = products.filter((p) => p.category === cat.id);
+                    if (items.length === 0) return null;
 
-                          <div className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 lg:grid lg:grid-cols-3 lg:gap-x-5 lg:gap-y-8 lg:overflow-visible lg:pb-0 lg:snap-none">
-                            {renderCards(items)}
-                            <div className="min-w-5 shrink-0 lg:hidden" />
-                          </div>
+                    return (
+                      <div key={cat.id} className="space-y-5">
+                        <CategoryHeader
+                          index={idx + 1}
+                          title={cat.label}
+                          detail={`${items.length} ${items.length === 1 ? 'opción' : 'opciones'}`}
+                        />
+
+                        {/* Grilla de 4 columnas */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-4">
+                          {items.map((product) => (
+                            <ProductCard
+                              key={product.id}
+                              product={product}
+                              onOpenCustomizer={setCustomizingProduct}
+                              onQuickAdd={handleQuickAddToCart}
+                              fullWidth
+                            />
+                          ))}
                         </div>
-                      );
-                    })
-                  ) : (
-                    <div className="space-y-8">
-                      <CategoryHeader
-                        index={activeCategoryIndex}
-                        title={activeCategory.label}
-                        detail={`${filteredProducts.length} ${filteredProducts.length === 1 ? 'opción' : 'opciones'}`}
-                      />
-                      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                        {renderCards(filteredProducts, true)}
                       </div>
-                    </div>
-                  )}
-                </section>
-              </div>
-
-              {/* CÓMO FUNCIONA — Integrado suavemente en el flujo verde */}
-              <section id="como-funciona" className="scroll-mt-20 pb-28 pt-24">
-                <div className="mx-auto max-w-2xl px-5 lg:max-w-5xl xl:max-w-6xl">
-                  <div className="border-t border-cream/10 pt-20">
-                    <p className="font-santos text-sm uppercase tracking-[0.2em] text-accent">Paso a paso</p>
-                    <h2 className="font-santos mt-2 text-[40px] uppercase leading-[0.92] text-cream sm:text-[58px]">
-                      ¿Cómo funciona?
-                    </h2>
-
-                    <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                      {STEPS.map((step, idx) => (
-                        <div key={step.title} className="group relative rounded-[26px] bg-cream/6 p-6 transition-all hover:bg-cream/10">
-                          <div className="flex items-center justify-between">
-                            <span className="grid size-12 place-items-center rounded-2xl bg-accent text-ink shadow-lg transition-transform group-hover:scale-110">
-                              <step.icon className="size-6" />
-                            </span>
-                            <span className="font-barlow grid place-items-center rounded-full bg-cream size-9 text-base leading-none text-ink tabular-nums shadow-xl">
-                              {String(idx + 1).padStart(2, '0')}
-                            </span>
-                          </div>
-                          <h3 className="font-santos mt-6 text-[24px] uppercase leading-[0.94] text-cream tracking-tight">{step.title}</h3>
-                          <p className="mt-3 text-[13px] leading-relaxed text-cream/45 font-medium">{step.description}</p>
-                        </div>
+                    );
+                  })
+                ) : (
+                  <div className="space-y-5">
+                    <CategoryHeader
+                      index={activeCategoryIndex}
+                      title={activeCategory.label}
+                      detail={`${filteredProducts.length} ${filteredProducts.length === 1 ? 'opción' : 'opciones'}`}
+                    />
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-4">
+                      {filteredProducts.map((product) => (
+                        <ProductCard
+                          key={product.id}
+                          product={product}
+                          onOpenCustomizer={setCustomizingProduct}
+                          onQuickAdd={handleQuickAddToCart}
+                          fullWidth
+                        />
                       ))}
                     </div>
                   </div>
-                </div>
+                )}
               </section>
-
-              {/* FOOTER */}
-              <Footer 
-                onToggleAdmin={() => setIsAdminView(true)} 
-                businessInfo={businessInfo}
-              />
             </div>
-          </div>
-      </>
-    )}
 
-      {/* =========================================================================
-          MODALES Y PANELES
-          ========================================================================= */}
+            {/* SECCIÓN: ¿CÓMO FUNCIONA? */}
+            <section id="como-funciona" className="scroll-mt-24">
+              <div className="como-funciona-container text-left">
+                
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-10">
+                  <div>
+                    <span className="text-[11px] font-black uppercase tracking-[0.25em] text-[#f5b82e] block mb-1">
+                      Paso a paso
+                    </span>
+                    <h2 className="font-santos text-[36px] sm:text-[46px] uppercase leading-none text-white tracking-tight">
+                      ¿Cómo funciona?
+                    </h2>
+                  </div>
+                  <p className="text-xs text-white/50 font-medium max-w-sm sm:text-right">
+                    Tu pedido directo a la plancha de Santos en 4 pasos simples.
+                  </p>
+                </div>
+
+                <div className="como-funciona-grid">
+                  <div className="como-funciona-card">
+                    <div className="flex items-center justify-between">
+                      <span className="como-funciona-icon">
+                        <UtensilsCrossed className="size-5 stroke-[2.5]" />
+                      </span>
+                      <span className="como-funciona-num">01</span>
+                    </div>
+                    <div className="mt-8">
+                      <h3 className="font-santos text-[21px] uppercase leading-tight text-white tracking-wide">
+                        Elegí tu menú
+                      </h3>
+                      <p className="mt-2 text-[12px] sm:text-[13px] leading-relaxed text-white/60 font-medium">
+                        Explorá nuestras smash burgers, papas y bebidas. Podés sumar toppings y notas para cocina.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="como-funciona-card">
+                    <div className="flex items-center justify-between">
+                      <span className="como-funciona-icon">
+                        <Bike className="size-5 stroke-[2.5]" />
+                      </span>
+                      <span className="como-funciona-num">02</span>
+                    </div>
+                    <div className="mt-8">
+                      <h3 className="font-santos text-[21px] uppercase leading-tight text-white tracking-wide">
+                        Delivery o Takeaway
+                      </h3>
+                      <p className="mt-2 text-[12px] sm:text-[13px] leading-relaxed text-white/60 font-medium">
+                        Elegí si te lo enviamos a tu puerta o si preferís pasar a retirarlo caliente por el local.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="como-funciona-card">
+                    <div className="flex items-center justify-between">
+                      <span className="como-funciona-icon">
+                        <CreditCard className="size-5 stroke-[2.5]" />
+                      </span>
+                      <span className="como-funciona-num">03</span>
+                    </div>
+                    <div className="mt-8">
+                      <h3 className="font-santos text-[21px] uppercase leading-tight text-white tracking-wide">
+                        Pagá fácil
+                      </h3>
+                      <p className="mt-2 text-[12px] sm:text-[13px] leading-relaxed text-white/60 font-medium">
+                        Aboná online por transferencia bancaria (o con tarjeta de forma presencial en el local).
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="como-funciona-card">
+                    <div className="flex items-center justify-between">
+                      <span className="como-funciona-icon">
+                        <Flame className="size-5 stroke-[2.5]" />
+                      </span>
+                      <span className="como-funciona-num">04</span>
+                    </div>
+                    <div className="mt-8">
+                      <h3 className="font-santos text-[21px] uppercase leading-tight text-white tracking-wide">
+                        Marcha en plancha
+                      </h3>
+                      <p className="mt-2 text-[12px] sm:text-[13px] leading-relaxed text-white/60 font-medium">
+                        Mandás el comprobante a WhatsApp con un clic y te avisamos en vivo cuando esté listo.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* FOOTER */}
+            <Footer 
+              onToggleAdmin={() => setIsAdminView(true)} 
+              onOpenCookies={() => setIsCookieModalOpen(true)}
+              businessInfo={businessInfo}
+              bankingInfo={bankingInfo}
+            />
+          </div>
+        </main>
+      )}
+
+      {/* Píldora flotante de pedido */}
+      {!isAdminView && (
+        <FloatingCartBar
+          cartCount={cartTotalItems}
+          cartTotal={cartGrandTotal}
+          onOpenCart={() => setIsCartOpen(true)}
+        />
+      )}
+
+      {/* Botón flotante de WhatsApp circular y minimalista */}
+      {!isAdminView && !isAnyModalOpen && cleanWhatsappPhone && (
+        <a
+          href={`https://api.whatsapp.com/send?phone=${cleanWhatsappPhone}&text=${encodeURIComponent('¡Hola Santos! Tengo una consulta sobre el menú.')}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group fixed mobile-safe-bottom right-5 z-40 flex items-center justify-center size-13 sm:size-14 rounded-full bg-[#083821] text-[#25D366] border-2 border-[#25D366]/40 shadow-[0_8px_24px_rgba(0,0,0,0.35)] hover:border-[#25D366] hover:bg-[#052615] hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer"
+          title="Consultar a cocina por WhatsApp"
+        >
+          <MessageCircle className="size-6 fill-current transition-transform duration-300 group-hover:scale-110" />
+          <span className="pointer-events-none absolute right-full mr-3 whitespace-nowrap rounded-xl bg-[#083821] border border-white/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white shadow-xl opacity-0 translate-x-2 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0 hidden sm:block">
+            Consultas a cocina
+          </span>
+        </a>
+      )}
+
+      {/* Modales */}
       <CustomizerModal
         key={customizingProduct?.id ?? 'closed'}
         isOpen={Boolean(customizingProduct)}
         product={customizingProduct}
         onClose={() => setCustomizingProduct(null)}
         onAddToCart={handleAddCustomizedToCart}
+        availableToppings={toppings}
       />
 
       <CartDrawer
@@ -403,19 +578,11 @@ export default function App() {
         onOrderSuccess={handleOrderSuccess}
       />
 
-      {/* WhatsApp flotante */}
-      {!isAdminView && (
-        <a
-          href={`https://wa.me/${bankingInfo.whatsappKitchen}?text=Hola%20Santos!%20Tengo%20una%20consulta%20sobre%20el%20menú.`}
-          target="_blank"
-          rel="noreferrer"
-          className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-3.5 text-xs font-bold uppercase tracking-wider text-ink shadow-diner transition-transform hover:scale-105 active:scale-95 cursor-pointer"
-          title="Consultas directas a cocina"
-        >
-          <MessageCircle className="size-5" />
-          <span className="hidden sm:inline">Consultar a cocina</span>
-        </a>
-      )}
+      {/* Sistema de Cookies & Privacidad */}
+      <CookieBanner
+        isOpenModal={isCookieModalOpen}
+        onCloseModal={() => setIsCookieModalOpen(false)}
+      />
     </div>
   );
 }

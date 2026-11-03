@@ -2,14 +2,15 @@
 import React from 'react';
 import { BUSINESS_CONFIG } from '../data/business';
 
-// Una pista completa: palabras + separadores (réplica de la referencia)
 function Track({ items, hidden }) {
   return (
-    <div aria-hidden={hidden} className="flex shrink-0 items-center gap-5 pr-5">
+    <div aria-hidden={hidden} className="flex shrink-0 items-center gap-6 pr-6">
       {items.map((text, idx) => (
         <React.Fragment key={idx}>
-          <span className="whitespace-nowrap">{text}</span>
-          <span className="font-santos whitespace-normal text-center text-[13px] leading-[1.05] tracking-wide">
+          <span className="whitespace-nowrap font-santos text-[22px] sm:text-[26px] uppercase tracking-wide text-white">
+            {text}
+          </span>
+          <span className="font-santos whitespace-normal text-center text-[10px] sm:text-[11px] leading-[1.05] tracking-widest text-white/90 font-black">
             SMASHING
             <br />
             HAPPINESS WITH
@@ -22,21 +23,21 @@ function Track({ items, hidden }) {
   );
 }
 
-export default function MarqueeTicker({ customItems, className = '' }) {
+export default function MarqueeTicker({ customItems }) {
   const items = customItems || BUSINESS_CONFIG.marqueeItems || [
-    'SANTOS SMASH BURGER COMPANY',
+    'SANTOS CHEESE SIGNATURE',
     'DOBLE CARNE 100% VACUNO',
-    'PAN DE PAPA ARTESANAL',
-    'PAPAS TRIPLE COCCIÓN',
-    'CHEDDAR DE VERDAD',
+    'PAN DE PAPA BRIOCHE',
+    'PICKLES HECHOS EN CASA',
+    'PAPAS FRITAS BIEN CALIENTES',
+    'SANTOS ONION HOUSE',
+    'REAL CHEESE ONLY'
   ];
 
   return (
-    <div className={`relative z-30 overflow-hidden bg-menu-bg py-6 text-cream ${className}`}>
-      <div className="santos-marquesina font-santos flex w-max text-[26px] uppercase leading-none">
-        <Track items={items} hidden={false} />
-        <Track items={items} hidden />
-      </div>
+    <div className="santos-marquesina flex w-max items-center py-4 sm:py-5 select-none">
+      <Track items={items} hidden={false} />
+      <Track items={items} hidden />
     </div>
   );
 }

@@ -62,39 +62,83 @@ export default function CheckoutModal({
   };
 
   // Formatear y disparar el mensaje a WhatsApp de cocina
+  // Formatear y disparar el mensaje a WhatsApp de cocina con estilo comanda
+  // Formatear y disparar el mensaje a WhatsApp con emojis Unicode blindados
   const handleSendToKitchenWhatsApp = () => {
-    // Armado del detalle de ítems
+    // Emojis en código Unicode puro (imposible que se rompan a signos de pregunta)
+    const E = {
+      burger: '\u{1F354}',
+      fire: '\u{1F525}',
+      receipt: '\u{1F9FE}',
+      clock: '\u{23F0}',
+      user: '\u{1F464}',
+      phone: '\u{1F4F1}',
+      moto: '\u{1F6F5}',
+      pin: '\u{1F4CD}',
+      compass: '\u{1F9ED}',
+      store: '\u{1F3EA}',
+      cart: '\u{1F6D2}',
+      warning: '\u{26A0}\u{FE0F}',
+      money: '\u{1F4B5}',
+      arrow: '\u{1F449}',
+      bank: '\u{1F3E6}',
+      clip: '\u{1F4CE}',
+      branch: '\u2514' // Conector del árbol └
+    };
+
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = now.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
+
+    // 1. Detalle del pedido en formato árbol gastronómico
     const itemsList = orderSummary.items.map(item => {
-      let line = `• ${item.quantity}x ${item.title}`;
+      let block = `${E.burger} *${item.quantity}x ${item.title.toUpperCase()}*`;
       if (item.selectedToppings && item.selectedToppings.length > 0) {
-        const toppingsStr = item.selectedToppings.map(t => `    + ${t.name}`).join('\n');
-        line += `\n${toppingsStr}`;
+        const toppingsStr = item.selectedToppings.map(t => `   ${E.branch} + ${t.name}`).join('\n');
+        block += `\n${toppingsStr}`;
       }
       if (item.notes) {
-        line += `\n    *(Nota: ${item.notes})*`;
+        block += `\n   ${E.warning} _Aclaración: ${item.notes}_`;
       }
-      return line;
+      return block;
     }).join('\n\n');
 
-    // Dirección o retiro
-    const addressDetails = isDelivery
-      ? `🛵 *MODALIDAD:* Envío a Domicilio\n📍 *DIRECCIÓN:* ${formData.street} ${formData.apartment ? `(${formData.apartment})` : ''}\n📍 *REFERENCIAS:* ${formData.cornerNotes || 'Sin referencias'}\n⏱️ *ZONA:* ${orderSummary.selectedZone?.zone || 'Zona General'}`
-      : `🏪 *MODALIDAD:* Retiro en Mostrador (Take Away)\n📍 *LOCAL:* ${BUSINESS_CONFIG.address}`;
+    // 2. Información de entrega
+    const deliverySection = isDelivery
+      ? `${E.moto} *MODALIDAD:* Envío a Domicilio\n` +
+        `${E.pin} *Dirección:* ${formData.street} ${formData.apartment ? `(${formData.apartment})` : ''}\n` +
+        `${E.compass} *Referencias:* ${formData.cornerNotes || 'Sin referencias'}\n` +
+        `${E.clock} *Zona:* ${orderSummary.selectedZone?.zone || 'Zona General'}`
+      : `${E.store} *MODALIDAD:* Retiro en Mostrador (Take Away)\n` +
+        `${E.pin} *Local:* ${BUSINESS_CONFIG.address}`;
 
-    const message = encodeURIComponent(
-      `¡Hola Santos Smash Burgers! 🍔🔥\n` +
-      `Acabo de generar la comanda *#${createdOrderCode}*\n\n` +
-      `👤 *CLIENTE:* ${formData.name}\n` +
-      `📱 *WHATSAPP:* ${formData.phone}\n` +
-      `${addressDetails}\n\n` +
-      `📋 *DETALLE DEL PEDIDO:*\n${itemsList}\n\n` +
-      `💰 *Subtotal Comida:* $${orderSummary.subtotal.toLocaleString('es-AR')} ARS\n` +
-      `🛵 *Costo Envío:* ${orderSummary.shippingFee > 0 ? `$${orderSummary.shippingFee.toLocaleString('es-AR')} ARS` : 'GRATIS'}\n` +
-      `🔥 *TOTAL A TRANSFERIR:* $${orderSummary.grandTotal.toLocaleString('es-AR')} ARS\n\n` +
-      `Te adjunto a continuación la captura del comprobante de transferencia bancaria para que comience la marcha en plancha. ¡Muchas gracias!`
-    );
+    // 3. Estructura de la comanda con divisores limpios
+    const message = 
+      `==============================\n` +
+      `${E.fire} *SANTOS FOOD CLUB* · COMANDA\n` +
+      `==============================\n` +
+      `${E.receipt} *Orden:* #${createdOrderCode}\n` +
+      `${E.clock} *Fecha:* ${dateStr} - ${timeStr} hs\n\n` +
+      `${E.user} *Cliente:* ${formData.name}\n` +
+      `${E.phone} *WhatsApp:* ${formData.phone}\n` +
+      `${deliverySection}\n\n` +
+      `==============================\n` +
+      `${E.cart} *DETALLE DEL PEDIDO:*\n` +
+      `==============================\n` +
+      `${itemsList}\n\n` +
+      `==============================\n` +
+      `${E.money} *TOTAL A TRANSFERIR:*\n` +
+      `==============================\n` +
+      `• Comida: $${orderSummary.subtotal.toLocaleString('es-AR')} ARS\n` +
+      `• Envío: ${orderSummary.shippingFee > 0 ? `$${orderSummary.shippingFee.toLocaleString('es-AR')} ARS` : 'GRATIS'}\n` +
+      `${E.arrow} *TOTAL FINAL:* *$${orderSummary.grandTotal.toLocaleString('es-AR')} ARS*\n\n` +
+      `${E.bank} *Datos de transferencia:*\n` +
+      `• Alias: *${bankingInfo.alias}*\n` +
+      `• Banco: ${bankingInfo.bankName}\n\n` +
+      `${E.clip} *Te adjunto a continuación la captura del comprobante.* ¡Muchas gracias!`;
 
-    window.open(`https://wa.me/${bankingInfo.whatsappKitchen}?text=${message}`, '_blank');
+    const cleanPhone = (bankingInfo.whatsappKitchen || '').replace(/[^0-9]/g, '');
+    window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`, '_blank');
 
     if (onOrderSuccess) {
       onOrderSuccess();

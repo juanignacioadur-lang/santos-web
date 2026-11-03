@@ -1,10 +1,173 @@
 // src/components/HeroSection.jsx
-import React, { useState, useRef } from 'react';
-import { ArrowDown, Users, Check, Copy } from 'lucide-react';
+import React, { useState, useRef, useEffect, memo } from 'react';
+import { createPortal } from 'react-dom';
+import { ArrowDown, Users, Check, Copy, RotateCcw } from 'lucide-react';
+
+const FONDO_IMAGES = [
+  'https://i.postimg.cc/3wj1HBBx/fondo.jpg',
+  'https://i.postimg.cc/zB0kyG6Q/fondo1.jpg',
+  'https://i.postimg.cc/xCtPX1hw/fondo2.jpg',
+  'https://i.postimg.cc/3RnZkxVP/fondo3.jpg',
+  'https://i.postimg.cc/j5ZhDSBb/fondo4.jpg',
+  'https://i.postimg.cc/nz01XhNx/fondo5.jpg',
+  'https://i.postimg.cc/ZRVLW5XT/fondo6.jpg',
+  'https://i.postimg.cc/RFXTWZ24/fondo7.jpg',
+  'https://i.postimg.cc/XJQgrYtY/fondo8.jpg',
+  'https://i.postimg.cc/76mN5ZjY/fondo9.jpg',
+  'https://i.postimg.cc/cHXcvLP1/fondo10.jpg',
+  'https://i.postimg.cc/sXwJMgbX/fondo11.jpg',
+  'https://i.postimg.cc/MTdYnpgH/fondo12.jpg',
+  'https://i.postimg.cc/NFFkmwww/fondo13.jpg',
+  'https://i.postimg.cc/yxxyczz7/fondo14.jpg'
+];
+
+const COLUMNS = [
+  [FONDO_IMAGES[0], FONDO_IMAGES[10], FONDO_IMAGES[5]],
+  [FONDO_IMAGES[1], FONDO_IMAGES[11], FONDO_IMAGES[6]],
+  [FONDO_IMAGES[2], FONDO_IMAGES[12], FONDO_IMAGES[7]],
+  [FONDO_IMAGES[3], FONDO_IMAGES[13], FONDO_IMAGES[8]],
+  [FONDO_IMAGES[4], FONDO_IMAGES[14], FONDO_IMAGES[9]],
+  [FONDO_IMAGES[5], FONDO_IMAGES[0], FONDO_IMAGES[10]],
+  [FONDO_IMAGES[6], FONDO_IMAGES[1], FONDO_IMAGES[11]],
+  [FONDO_IMAGES[7], FONDO_IMAGES[2], FONDO_IMAGES[12]],
+  [FONDO_IMAGES[8], FONDO_IMAGES[3], FONDO_IMAGES[13]],
+  [FONDO_IMAGES[9], FONDO_IMAGES[4], FONDO_IMAGES[14]],
+];
+
+// 1. SUB-COMPONENTE AISLADO: Se anima a 60 FPS sin lag
+const AnimatedTitle = memo(function AnimatedTitle({ videoRef, resetTrigger }) {
+  const [fillProgress, setFillProgress] = useState(0);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    let animId;
+    const syncText = () => {
+      if (video.duration && !isNaN(video.duration)) {
+        const percent = (video.currentTime / video.duration) * 100;
+        setFillProgress(Math.min(100, Math.max(0, percent)));
+      }
+      if (!video.paused && !video.ended) {
+        animId = requestAnimationFrame(syncText);
+      }
+    };
+
+    const handlePlay = () => {
+      cancelAnimationFrame(animId);
+      animId = requestAnimationFrame(syncText);
+    };
+
+    const handleEnded = () => {
+      cancelAnimationFrame(animId);
+      setFillProgress(100);
+    };
+
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('ended', handleEnded);
+
+    if (!video.paused && !video.ended) {
+      animId = requestAnimationFrame(syncText);
+    }
+
+    return () => {
+      cancelAnimationFrame(animId);
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('ended', handleEnded);
+    };
+  }, [videoRef, resetTrigger]);
+
+  const progressUnRelleno = Math.min(100, Math.max(0, (fillProgress / 30) * 100));
+  const progressDosTapas = fillProgress < 20 
+    ? 0 
+    : Math.min(100, Math.max(0, ((fillProgress - 20) / 36) * 100));
+
+  return (
+    <h1 className="font-santos text-[54px] sm:text-[76px] md:text-[74px] lg:text-[90px] uppercase leading-[0.92] select-none text-left tracking-tight">
+      {/* LÍNEA DE ARRIBA: "Dos tapas." (Se pinta segunda) */}
+      <span className="relative block">
+        <span className="text-[#083821]/20">Dos tapas.</span>
+        <span 
+          className="absolute inset-0 text-[#083821] overflow-hidden will-change-[clip-path]"
+          style={{ clipPath: `inset(0 ${Math.max(0, 100 - progressDosTapas)}% 0 0)` }}
+          aria-hidden="true"
+        >
+          Dos tapas.
+        </span>
+      </span>
+
+      {/* LÍNEA DE ABAJO: "Un relleno." (Se pinta primera) */}
+      <span className="relative block mt-0.5 sm:mt-1">
+        <span className="text-[#083821]/20">Un relleno.</span>
+        <span 
+          className="absolute inset-0 text-[#083821] overflow-hidden will-change-[clip-path]"
+          style={{ clipPath: `inset(0 ${Math.max(0, 100 - progressUnRelleno)}% 0 0)` }}
+          aria-hidden="true"
+        >
+          Un relleno.
+        </span>
+      </span>
+    </h1>
+  );
+});
+
+// 2. FONDO DE POSTERS (Oculto en móviles con 'hidden sm:block')
+const BackgroundWall = memo(function BackgroundWall() {
+  return (
+    <div 
+      className="hidden sm:block absolute inset-0 pointer-events-none overflow-hidden select-none" 
+      style={{ transform: 'translateZ(0)', willChange: 'transform' }}
+    >
+      <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2.5 sm:gap-3.5 -mt-8 -mx-4 h-[125%] opacity-90">
+        {COLUMNS.map((col, colIdx) => (
+          <div 
+            key={colIdx} 
+            className={`flex flex-col gap-2.5 sm:gap-3.5 ${
+              colIdx >= 8 ? 'hidden xl:flex' : colIdx >= 6 ? 'hidden lg:flex' : colIdx >= 4 ? 'hidden md:flex' : 'flex'
+            } ${colIdx % 2 === 1 ? 'pt-7' : '-mt-3'}`}
+          >
+            {col.map((src, imgIdx) => (
+              <img 
+                key={imgIdx} 
+                src={src} 
+                alt="Poster" 
+                width="300"
+                height="400"
+                loading="lazy" 
+                decoding="async"
+                className="w-full aspect-[3/4] object-cover rounded-xl sm:rounded-2xl border border-white/10 shadow-lg" 
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {/* Brillo central */}
+      <div 
+        className="absolute inset-0" 
+        style={{
+          background: 'radial-gradient(ellipse 65% 50% at 50% 48%, rgba(255, 255, 255, 0.22) 0%, rgba(245, 184, 46, 0.12) 35%, transparent 70%)',
+          mixBlendMode: 'screen'
+        }} 
+      />
+
+      {/* Viñeta */}
+      <div 
+        className="absolute inset-0" 
+        style={{
+          background: 'radial-gradient(ellipse 70% 55% at 50% 50%, transparent 20%, rgba(0,0,0,0.5) 60%, rgba(0,0,0,0.95) 100%)'
+        }} 
+      />
+      
+      <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/80" />
+    </div>
+  );
+});
 
 export default function HeroSection() {
   const [copiedLink, setCopiedLink] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
+  const [resetCount, setResetCount] = useState(0);
   const videoRef = useRef(null);
 
   const scrollToMenu = () => {
@@ -14,6 +177,7 @@ export default function HeroSection() {
 
   const handleResetVideo = () => {
     if (videoRef.current) {
+      setResetCount(c => c + 1);
       videoRef.current.currentTime = 0;
       videoRef.current.play();
     }
@@ -28,156 +192,177 @@ export default function HeroSection() {
   };
 
   return (
-    <section className="relative isolate overflow-hidden bg-surface text-ink">
-      <div className="mx-auto grid max-w-2xl items-center gap-8 px-5 pb-24 pt-12 lg:max-w-5xl lg:grid-cols-[1.05fr_1fr] lg:gap-6 lg:pb-40 lg:pt-20 xl:max-w-6xl">
+    // En móviles: bg-white limpio. En computadoras: bg-[#0d0d0d] con fotos de fondo
+    <section className="relative overflow-hidden bg-white sm:bg-[#0d0d0d] pt-2 sm:pt-20 lg:pt-24 pb-12 sm:pb-32 lg:pb-36 px-0 sm:px-6 lg:px-8 select-none">
+      
+      {/* Fondo de Posters: Oculto en móviles */}
+      <BackgroundWall />
 
-        {/* TÍTULO + CTA */}
-        <div className="order-2 text-left lg:order-1">
+      {/* Contenedor central: En móviles es blanco, plano y sin marco; en PC es la tarjeta flotante */}
+      <div className="relative z-10 mx-auto max-w-6xl w-full px-4 sm:px-0">
+        <div className="relative bg-white rounded-none sm:rounded-[36px] sm:border-2 sm:border-[#083821]/15 sm:shadow-[0_25px_60px_-10px_rgba(0,0,0,0.65)] overflow-hidden px-2 py-4 sm:px-10 sm:py-9 lg:px-12 lg:py-10 text-ink">
+          
+          <div className="grid items-center gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10">
+            
+            {/* LADO IZQUIERDO: TEXTO + ACCIONES */}
+            <div className="order-2 text-left lg:order-1">
+              
+              <p className="mb-4 inline-flex max-w-full items-center gap-2 rounded-xl bg-[#f5b82e] px-3.5 py-1.5 text-[12px] sm:text-[13px] leading-snug text-[#083821] font-bold shadow-sm">
+                <span className="size-2 shrink-0 rounded-full bg-[#083821]" />
+                <span>Smash de verdad · carne aplastada al momento</span>
+              </p>
 
-          {/* Badge de apertura / promo */}
-          <p className="mb-5 inline-flex max-w-full items-center gap-2 rounded-2xl bg-accent px-3.5 py-2 text-[13px] leading-snug text-ink">
-            <span className="size-2 shrink-0 rounded-full bg-ink" />
-            <span>
-              <strong className="font-bold">Smash de verdad</strong> · carne aplastada al momento
-            </span>
-          </p>
+              <AnimatedTitle videoRef={videoRef} resetTrigger={resetCount} />
 
-          <h1 className="font-santos text-[58px] uppercase leading-[0.92] sm:text-[80px] md:text-[76px] lg:text-[92px] text-ink">
-            <span className="block">Dos tapas.</span>
-            <span className="block">Un relleno.</span>
-          </h1>
+              <div className="mt-6 flex flex-wrap items-center gap-4 sm:gap-5">
+                <button
+                  onClick={scrollToMenu}
+                  className="btn-santos-primary h-14 px-7 text-[18px]"
+                >
+                  <span>Explora el menú</span>
+                  <ArrowDown className="size-4.5 stroke-[3]" />
+                </button>
 
-          <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-4">
-            {/* Botón principal (réplica exacta de la captura) */}
-            <button
-              onClick={scrollToMenu}
-              className="group inline-flex h-14 items-stretch overflow-hidden rounded-2xl bg-accent text-ink shadow-[0_14px_30px_-14px_rgba(235,98,58,0.6)] transition-transform duration-150 hover:-rotate-1 active:scale-[0.97] cursor-pointer"
-            >
-              <span className="font-santos flex items-center px-6 pt-0.5 text-[20px] uppercase leading-none">
-                Elegí tu smash
-              </span>
-              <span className="flex w-14 items-center justify-center border-l border-ink/20">
-                <ArrowDown className="size-5 transition-transform group-hover:translate-y-0.5" />
-              </span>
-            </button>
+                <button
+                  type="button"
+                  onClick={() => setShowGroupModal(true)}
+                  className="inline-flex items-center gap-2 text-xs sm:text-[13px] font-bold uppercase tracking-wider text-[#083821] underline decoration-[#083821]/30 underline-offset-6 transition-all hover:decoration-[#083821] cursor-pointer"
+                >
+                  <Users className="size-4 text-[#f5b82e]" />
+                  <span>Pedir entre varios</span>
+                </button>
+              </div>
 
-            {/* Pedir entre varios */}
-            <button
-              type="button"
-              onClick={() => setShowGroupModal(true)}
-              className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-ink underline decoration-ink/30 underline-offset-4 transition-colors hover:decoration-ink cursor-pointer"
-            >
-              <Users className="size-4 text-accent" />
-              <span>Pedir entre varios</span>
-            </button>
-          </div>
-
-          <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] font-semibold uppercase tracking-wider text-ink/50">
-            <span>✓ 100% vacuno</span>
-            <span>•</span>
-            <span>✓ Pan de papa</span>
-            <span>•</span>
-            <span>✓ Papas triple cocción</span>
-          </div>
-        </div>
-
-        {/* LA BURGER REAL — el fondo blanco del video se funde con el crema de la marca */}
-        <div className="order-1 flex items-center justify-center lg:order-2">
-          <div className="relative z-20 w-full max-w-[340px] sm:max-w-[400px] lg:max-w-[440px] bg-surface">
-            <div className="relative aspect-4/5 w-full">
-              <video
-                ref={videoRef}
-                className="h-full w-full object-cover"
-                autoPlay
-                muted
-                playsInline
-                preload="auto"
-                style={{
-                  // Multiplicar contra el crema: blanco × crema = crema (fondo invisible)
-                  mixBlendMode: 'multiply',
-                  filter: 'brightness(1.2) saturate(1.05)',
-                  // Máscara lateral: difumina solo los costados (donde se corta la sombra) y mantiene el centro nítido
-                  maskImage: 'linear-gradient(to bottom, black 85%, transparent 98%), linear-gradient(to right, transparent, black 15%, black 85%, transparent)',
-                  WebkitMaskImage: 'linear-gradient(to bottom, black 85%, transparent 98%), linear-gradient(to right, transparent, black 15%, black 85%, transparent)',
-                  maskComposite: 'intersect',
-                  WebkitMaskComposite: 'source-in'
-                }}
-              >
-                <source src="/video/hero-burger.mp4" type="video/mp4" />
-              </video>
+              <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] font-semibold uppercase tracking-wider text-ink/50">
+                <span>✓ 100% vacuno</span>
+                <span>•</span>
+                <span>✓ Pan de papa</span>
+                <span>•</span>
+                <span>✓ Papas triple cocción</span>
+              </div>
             </div>
 
-            {/* Botón de reset (subido y con z-index alto para que no lo tape la marquesina) */}
-            <button
-              onClick={handleResetVideo}
-              className="absolute bottom-10 right-4 z-40 grid size-10 place-items-center rounded-full bg-menu-bg text-cream shadow-xl transition-transform duration-500 hover:rotate-180 active:scale-90 cursor-pointer border-2 border-cream/20"
-              title="Armalo de nuevo"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="size-5">
-                <path d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
-                <path d="M21 3v5h-5" />
-              </svg>
-            </button>
+            {/* LADO DERECHO: LA BURGER REAL */}
+            <div className="order-1 flex items-center justify-center lg:order-2">
+              <div className="relative z-20 w-full max-w-[280px] sm:max-w-[380px] lg:max-w-[420px]">
+                <div className="relative aspect-4/5 w-full overflow-hidden">
+                  
+                  <div className="absolute top-0 inset-x-0 h-16 bg-gradient-to-b from-white via-white/80 to-transparent pointer-events-none z-10" />
+
+                  <video
+                    ref={videoRef}
+                    className="h-full w-full object-cover pointer-events-none select-none"
+                    autoPlay
+                    muted
+                    disablePictureInPicture
+                    playsInline
+                    preload="auto"
+                    style={{
+                      mixBlendMode: 'multiply',
+                      filter: 'brightness(1.2) saturate(1.05)',
+                      maskImage: 'linear-gradient(to bottom, transparent 0%, black 16%, black 85%, transparent 98%), linear-gradient(to right, transparent, black 15%, black 85%, transparent)',
+                      WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 16%, black 85%, transparent 98%), linear-gradient(to right, transparent, black 15%, black 85%, transparent)',
+                      maskComposite: 'intersect',
+                      WebkitMaskComposite: 'source-in'
+                    }}
+                  >
+                    <source src="/video/hero-burger.mp4" type="video/mp4" />
+                  </video>
+                </div>
+
+                {/* Botón de reset */}
+                <button
+                  onClick={handleResetVideo}
+                  className="absolute bottom-6 right-2 z-40 grid size-10 place-items-center rounded-full bg-menu-bg text-cream shadow-md transition-transform duration-500 hover:rotate-180 active:scale-90 cursor-pointer border border-cream/20"
+                  title="Armalo de nuevo"
+                >
+                  <RotateCcw className="size-4.5 stroke-[2.5]" />
+                </button>
+              </div>
+            </div>
+
           </div>
+
         </div>
       </div>
 
       {/* MODAL: PEDIR ENTRE VARIOS */}
-      {showGroupModal && (
+      {showGroupModal && typeof document !== 'undefined' && createPortal(
         <div
-          className="animate-fadeIn fixed inset-0 z-[80] flex items-center justify-center bg-ink/60 p-4 backdrop-blur-sm"
+          className="animate-fadeIn fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm select-none"
           onClick={() => setShowGroupModal(false)}
         >
           <div
-            className="w-full max-w-md rounded-3xl border border-ink/10 bg-cream p-6 text-left shadow-diner sm:p-8"
+            className="w-full max-w-md rounded-3xl border-2 border-[#083821]/15 bg-[#f2eee2] p-6 sm:p-8 text-left shadow-[0_20px_50px_rgba(0,0,0,0.3)] relative z-10 space-y-5"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-ink/10 pb-4">
-              <div className="flex items-center gap-2">
-                <Users className="size-5 text-accent" />
-                <h3 className="font-santos text-lg uppercase text-ink">Pedir con amigos / oficina</h3>
+            <div className="flex items-center justify-between border-b border-[#083821]/10 pb-4">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 rounded-xl bg-[#f5b82e]/20 text-[#083821]">
+                  <Users className="size-5" />
+                </span>
+                <h3 className="font-santos text-xl uppercase tracking-wide text-[#083821]">
+                  Pedir con amigos / oficina
+                </h3>
               </div>
               <button
+                type="button"
                 onClick={() => setShowGroupModal(false)}
-                className="text-xl leading-none text-ink/50 transition-colors hover:text-ink cursor-pointer"
-                aria-label="Cerrar"
+                className="p-1.5 rounded-xl text-[#083821]/50 hover:text-[#083821] hover:bg-[#083821]/5 transition-colors cursor-pointer"
+                aria-label="Cerrar modal"
               >
-                ✕
+                <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
               </button>
             </div>
 
-            <div className="space-y-4 py-5 text-xs text-ink/70">
-              <p className="leading-relaxed">
-                ¡Armar un pedido grupal en Santos es súper fácil! Cada uno elige lo que quiere comer y una sola persona envía
-                el pedido consolidado a la cocina por WhatsApp.
+            <div className="space-y-4 text-xs text-[#083821]/80 leading-relaxed font-medium">
+              <p>
+                ¡Armar un pedido grupal en Santos es súper fácil! Cada uno elige lo que quiere comer y una sola persona envía el pedido consolidado a la cocina por WhatsApp.
               </p>
 
-              <div className="space-y-2 rounded-2xl border border-ink/10 bg-cream/60 p-4">
-                <strong className="block text-[11px] font-bold uppercase text-ink">¿Cómo funciona?</strong>
-                <p>1. Compartiles el link de la tienda a tu grupo de WhatsApp.</p>
-                <p>2. Cada uno anota qué hamburguesa, papas o bebida quiere.</p>
-                <p>3. El encargado carga todo al carrito, transfiere y envía la comanda a cocina.</p>
+              <div className="space-y-2.5 rounded-2xl border border-[#083821]/10 bg-white/70 p-4 shadow-sm">
+                <strong className="block text-[11px] font-black uppercase tracking-wider text-[#f5b82e]">
+                  ¿Cómo funciona?
+                </strong>
+                <p className="flex items-start gap-2">
+                  <span className="font-bold text-[#083821]">1.</span>
+                  <span>Compartiles el enlace de la tienda a tu grupo de WhatsApp.</span>
+                </p>
+                <p className="flex items-start gap-2">
+                  <span className="font-bold text-[#083821]">2.</span>
+                  <span>Cada uno anota qué hamburguesa, papas o bebida quiere.</span>
+                </p>
+                <p className="flex items-start gap-2">
+                  <span className="font-bold text-[#083821]">3.</span>
+                  <span>El encargado carga todo a la bolsa, transfiere y envía la comanda a cocina.</span>
+                </p>
               </div>
             </div>
 
             <div className="flex gap-3 pt-2">
               <button
+                type="button"
                 onClick={handleShareGroupOrder}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-ink px-4 py-3 text-xs font-bold uppercase tracking-wider text-cream transition-transform active:scale-[0.98] cursor-pointer"
+                className="btn-santos-dark flex-1 h-12 text-xs"
               >
-                {copiedLink ? <Check className="size-4" /> : <Copy className="size-4" />}
-                <span>{copiedLink ? '¡Link copiado!' : 'Copiar link de la tienda'}</span>
+                {copiedLink ? <Check className="size-4 stroke-[3]" /> : <Copy className="size-4" />}
+                <span>{copiedLink ? '¡Enlace copiado!' : 'Copiar enlace'}</span>
               </button>
 
               <button
+                type="button"
                 onClick={() => setShowGroupModal(false)}
-                className="rounded-xl border border-ink/15 px-4 py-3 text-xs font-semibold text-ink/70 transition-colors hover:bg-cream cursor-pointer"
+                className="btn-santos-light-outline px-6 h-12 text-xs"
               >
                 Cerrar
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </section>
   );

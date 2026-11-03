@@ -1,22 +1,24 @@
 // src/components/HeaderNavbar.jsx
 import React, { useState, useEffect } from 'react';
-import { ShoppingBag, Menu, X, LayoutDashboard, Store } from 'lucide-react';
+import { ShoppingBag, LayoutDashboard, Store, Menu, X } from 'lucide-react';
 import { getStoreStatus, BUSINESS_CONFIG } from '../data/business';
 
 export default function HeaderNavbar({
   cartCount = 0,
   cartTotal = 0,
-  onOpenCart,
-  isAdminView,
-  onToggleAdmin,
+  onOpenCart = () => {},
+  isAdminView = false,
+  onToggleAdmin = () => {},
   businessInfo = BUSINESS_CONFIG
 }) {
-  const [storeStatus, setStoreStatus] = useState(getStoreStatus(businessInfo.schedule, businessInfo.isManualClosed));
+  const [storeStatus, setStoreStatus] = useState(
+    getStoreStatus(businessInfo.schedule, businessInfo.isManualClosed)
+  );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Actualiza el estado de la cocina cada 60 segundos
   useEffect(() => {
-    const update = () => setStoreStatus(getStoreStatus(businessInfo.schedule, businessInfo.isManualClosed));
+    const update = () =>
+      setStoreStatus(getStoreStatus(businessInfo.schedule, businessInfo.isManualClosed));
     update();
     const timer = setInterval(update, 60000);
     return () => clearInterval(timer);
@@ -24,125 +26,149 @@ export default function HeaderNavbar({
 
   const scrollToSection = (id) => {
     setMobileMenuOpen(false);
-    const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const goTop = () => {
-    if (isAdminView) onToggleAdmin();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (isAdminView) {
+      onToggleAdmin(); // Si está en el admin, regresa a la tienda y scrollea
+    }
+    setTimeout(() => {
+      const element = document.getElementById(id);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 100);
   };
 
   return (
     <>
-      {/* Barra de estado superior (en vivo, según el horario de cocina) */}
-      <div className="flex items-center justify-center gap-2 bg-cream px-5 py-2 text-[11px] font-semibold text-ink/70">
-        <span className={`size-1.5 shrink-0 rounded-full ${storeStatus.dotColor}`} />
-        <span>{storeStatus.badgeText}</span>
-      </div>
+      {/* Barra de Navegación Principal */}
+      <header className="sticky top-0 z-40 bg-[#f2eee2]/95 backdrop-blur-sm select-none border-b border-[#083821]/5">
+        <div className="mx-auto flex h-16 sm:h-20 max-w-6xl items-center justify-between px-5 sm:px-8">
+          
+          {/* Logo Santos */}
+          <button 
+            onClick={() => {
+              if (isAdminView) onToggleAdmin();
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }} 
+            className="group flex items-center cursor-pointer text-left py-1"
+          >
+            <img 
+              src="/santos.png" 
+              alt="Santos" 
+              className="h-12 sm:h-14 w-auto object-contain transition-transform group-hover:scale-105" 
+              style={{
+                filter: 'brightness(0) saturate(100%) invert(18%) sepia(38%) saturate(1471%) hue-rotate(107deg) brightness(96%) contrast(98%)'
+              }}
+            />
+          </button>
 
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-md select-none">
-        <div className="mx-auto flex h-16 max-w-2xl items-center justify-between gap-3 px-5 sm:h-20 lg:max-w-5xl xl:max-w-6xl">
-  
-          {/* LOGO SANTOS */}
-          <button onClick={goTop} className="group flex shrink-0 items-center gap-2.5 cursor-pointer">
-            <span className="font-santos text-3xl leading-none text-ink transition-colors sm:text-4xl">
-              Santos
+          {/* Menú de navegación Desktop (Solo visible en la tienda pública) */}
+          {!isAdminView && (
+            <nav className="font-santos hidden md:flex items-center gap-8 text-[14px] uppercase tracking-wider text-[#083821]">
+              <button 
+                onClick={() => scrollToSection('menu-section')} 
+                className="hover:text-[#eb623a] transition-colors cursor-pointer"
+              >
+                El menú
+              </button>
+              <button 
+                onClick={() => scrollToSection('como-funciona')} 
+                className="hover:text-[#eb623a] transition-colors cursor-pointer"
+              >
+                Cómo funciona
+              </button>
+              <button 
+                onClick={() => scrollToSection('contacto')} 
+                className="hover:text-[#eb623a] transition-colors cursor-pointer"
+              >
+                Contacto
+              </button>
+            </nav>
+          )}
+
+          {/* ACCIONES: Estado + Botón Admin + Botón Carrito */}
+          <div className="flex items-center gap-2.5">
+            
+            {/* Estado de la cocina en vivo */}
+            <span
+              className="hidden lg:inline-flex items-center gap-2 rounded-full border border-[#083821]/15 bg-[#e8e1d5]/40 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#083821]"
+              title={storeStatus.detailText}
+            >
+              <span className={`size-2 shrink-0 rounded-full ${storeStatus.dotColor}`} />
+              {storeStatus.isOpen ? 'Abierto' : 'Cerrado'}
             </span>
-          </button>
 
-        {/* NAVEGACIÓN DESKTOP */}
-        {!isAdminView && (
-          <nav className="font-santos hidden items-center gap-7 text-[13px] uppercase tracking-wide text-ink lg:flex">
-            <button onClick={() => scrollToSection('menu-section')} className="transition-colors hover:text-accent cursor-pointer">
-              El menú
-            </button>
-            <button onClick={() => scrollToSection('como-funciona')} className="transition-colors hover:text-accent cursor-pointer">
-              Cómo funciona
-            </button>
-            <button onClick={() => scrollToSection('contacto')} className="transition-colors hover:text-accent cursor-pointer">
-              Contacto
-            </button>
-          </nav>
-        )}
-
-        {/* ACCIONES */}
-        <div className="flex items-center gap-2">
-
-          {/* Estado de la cocina en vivo */}
-          <span
-            className={`hidden items-center gap-2 rounded-full border border-ink/15 bg-ink/5 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink md:inline-flex`}
-            title={storeStatus.detailText}
-          >
-            <span className={`size-2 shrink-0 rounded-full ${storeStatus.dotColor}`} />
-            {storeStatus.isOpen ? 'Abierto' : 'Cerrado'}
-          </span>
-
-          {/* Panel de administración */}
-          <button
-            onClick={onToggleAdmin}
-            className={`flex h-10 items-center gap-1.5 rounded-full border px-3 text-[11px] font-bold uppercase tracking-wide transition-colors cursor-pointer ${
-              isAdminView
-                ? 'border-ink bg-ink text-cream'
-                : 'border-ink/20 text-ink hover:border-ink/60'
-            }`}
-            title="Panel de administración"
-          >
-            {isAdminView ? <Store className="size-3.5" /> : <LayoutDashboard className="size-3.5" />}
-            <span className="hidden sm:inline">{isAdminView ? 'Ver web' : 'Admin'}</span>
-          </button>
-
-          {/* Carrito */}
-          {!isAdminView && (
+            {/* BOTÓN ADMIN / VER WEB */}
             <button
-              onClick={onOpenCart}
-              className="relative flex h-10 items-center gap-2 rounded-full bg-ink pl-3 pr-4 text-cream transition-transform duration-150 hover:-rotate-1 active:scale-[0.97] cursor-pointer"
+              onClick={onToggleAdmin}
+              className={`flex h-10 items-center gap-1.5 rounded-full border px-3 text-[11px] font-bold uppercase tracking-wide transition-all cursor-pointer shadow-sm ${
+                isAdminView
+                  ? 'border-[#083821] bg-[#083821] text-[#f2eee2]'
+                  : 'border-[#083821]/20 text-[#083821] hover:border-[#083821] bg-card/70 hover:bg-card'
+              }`}
+              title={isAdminView ? "Volver a la tienda" : "Panel de administración"}
             >
-              <ShoppingBag className="size-4 text-accent" />
-              <span className="font-santos text-sm leading-none">
-                {cartTotal > 0 ? `$${cartTotal.toLocaleString('es-AR')}` : 'Pedir'}
-              </span>
-              {cartCount > 0 && (
-                <span className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full border-2 border-surface bg-accent text-[10px] font-bold text-ink">
-                  {cartCount}
+              {isAdminView ? <Store className="size-3.5 text-[#eb623a]" /> : <LayoutDashboard className="size-3.5" />}
+              <span className="hidden sm:inline">{isAdminView ? 'Ver web' : 'Admin'}</span>
+            </button>
+
+            {/* BOTÓN CARRITO */}
+            {!isAdminView && (
+              <button
+                onClick={onOpenCart}
+                className="relative flex h-10 items-center gap-2 rounded-full bg-[#083821] pl-3 pr-4 text-[#f2eee2] transition-transform duration-150 hover:-rotate-1 active:scale-[0.97] cursor-pointer shadow-md"
+              >
+                <ShoppingBag className="size-4 text-[#eb623a]" />
+                <span className="font-santos text-sm leading-none pt-0.5">
+                  {cartTotal > 0 ? `$${cartTotal.toLocaleString('es-AR')}` : 'Pedir'}
                 </span>
-              )}
-            </button>
-          )}
+                {cartCount > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full border-2 border-[#f2eee2] bg-[#eb623a] text-[10px] font-black text-[#083821] font-mono">
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+            )}
 
-          {/* Menú móvil */}
-          {!isAdminView && (
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="grid size-10 place-items-center rounded-full border border-ink/20 text-ink transition-colors hover:border-ink/60 lg:hidden cursor-pointer"
-              aria-label="Abrir menú"
-            >
-              {mobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* MENÚ DESPLEGABLE MÓVIL */}
-      {mobileMenuOpen && !isAdminView && (
-        <div className="animate-fadeIn border-t border-ink/10 bg-surface px-5 py-4 lg:hidden">
-          <div className="font-santos flex flex-col gap-1 text-lg uppercase text-ink">
-            <button onClick={() => scrollToSection('menu-section')} className="border-b border-ink/10 py-3 text-left">
-              El menú
-            </button>
-            <button onClick={() => scrollToSection('como-funciona')} className="border-b border-ink/10 py-3 text-left">
-              Cómo funciona
-            </button>
-            <button onClick={() => scrollToSection('contacto')} className="py-3 text-left">
-              Contacto
-            </button>
+            {/* Menú móvil */}
+            {!isAdminView && (
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="grid size-10 place-items-center rounded-full border border-[#083821]/20 text-[#083821] hover:border-[#083821] md:hidden cursor-pointer"
+                aria-label="Abrir menú"
+              >
+                {mobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+              </button>
+            )}
           </div>
-          <p className="mt-3 text-center text-[11px] font-semibold uppercase tracking-wider text-ink/50">
-            {businessInfo.address}
-          </p>
+
         </div>
-      )}
-    </header>
+
+        {/* Desplegable móvil */}
+        {mobileMenuOpen && !isAdminView && (
+          <div className="md:hidden bg-[#f2eee2] border-t border-[#083821]/10 px-5 py-4 animate-fadeIn">
+            <div className="flex flex-col gap-3 font-santos text-base uppercase text-[#083821]">
+              <button 
+                onClick={() => scrollToSection('menu-section')} 
+                className="text-left py-2 hover:text-[#eb623a] transition-colors border-b border-[#083821]/5"
+              >
+                El menú
+              </button>
+              <button 
+                onClick={() => scrollToSection('como-funciona')} 
+                className="text-left py-2 hover:text-[#eb623a] transition-colors border-b border-[#083821]/5"
+              >
+                Cómo funciona
+              </button>
+              <button 
+                onClick={() => scrollToSection('contacto')} 
+                className="text-left py-2 hover:text-[#eb623a] transition-colors"
+              >
+                Contacto
+              </button>
+            </div>
+          </div>
+        )}
+      </header>
     </>
   );
 }

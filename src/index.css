@@ -2,13 +2,13 @@
 
 /* ==========================================================================
    SANTOS SMASH BURGERS — SISTEMA DE DISEÑO (réplica de alfajorconpapas.com)
-   Paleta: verde profundo #083821 · coral #eb623a · crema #f2eee2 · arena #e8e1d5
+   Paleta: verde profundo #083821 · amarillo dorado #f5b82e · crema #f2eee2 · arena #e8e1d5
    ========================================================================== */
 
 @theme {
   --color-ink: #083821;
   --color-ink-deep: #042415;
-  --color-accent: #eb623a;
+  --color-accent: #f5b82e;
   --color-cream: #f2eee2;
   --color-sand: #e8e1d5;
   --color-surface: #f2eee2;
@@ -29,14 +29,17 @@
     text-rendering: optimizeLegibility;
   }
 
-  html, body {
+  /* FORZAR LA BARRA DE SCROLL SIEMPRE:
+     Evita que el navbar y los contenidos salten a la derecha/izquierda al cambiar de pestaña */
+  html {
     scroll-behavior: smooth;
     background-color: #f2eee2;
     color: #083821;
     touch-action: manipulation;
     margin: 0;
     padding: 0;
-    height: 100%;
+    overflow-y: scroll !important;
+    scrollbar-gutter: stable !important;
   }
 
   body {
@@ -47,10 +50,12 @@
     flex-direction: column;
     padding-bottom: env(safe-area-inset-bottom, 0px);
     -webkit-tap-highlight-color: transparent;
+    margin: 0;
+    padding: 0;
   }
 
   ::selection {
-    background-color: rgba(235, 98, 58, 0.25);
+    background-color: rgba(245, 184, 46, 0.3);
     color: #083821;
   }
 
@@ -97,7 +102,7 @@
   }
 
   /* ---------------------------------------------------------------------
-     SOMBRAS SUAVES (reemplazan las sombras duras tipo cómic)
+     SOMBRAS SUAVES
      --------------------------------------------------------------------- */
   .shadow-diner {
     box-shadow: 0 18px 40px -22px rgba(8, 56, 33, 0.55);
@@ -113,7 +118,7 @@
   }
 
   /* ---------------------------------------------------------------------
-     MARQUESINA INCLINADA (idéntica a la referencia)
+     MARQUESINA INCLINADA
      --------------------------------------------------------------------- */
   .santos-marquesina,
   .alfajor-marquesina {
@@ -121,7 +126,7 @@
     will-change: transform;
   }
 
-  /* Divisor de arco (bumps que conectan con el footer) */
+  /* Divisor de arco */
   .santos-arc {
     height: 14px;
     width: 100%;
@@ -171,4 +176,272 @@
   .alfajor-marquesina {
     animation-duration: 120s;
   }
+}
+
+/* ==========================================================================
+   ESTILOS RETRO DINER PIRU (100% SÓLIDOS Y SIN HUECOS)
+   ========================================================================== */
+
+/* 1. Corte diagonal superior para el inicio del bloque verde */
+.piru-diagonal-cut {
+  clip-path: polygon(0 3.2vw, 100% 0, 100% 100%, 0 100%);
+}
+
+/* 2. Divisor festoneado ondulado */
+.piru-scallop-divider {
+  width: 100%;
+  height: 14px;
+  background-color: #083821;
+  background-image: radial-gradient(circle at 50% 100%, #042314 14px, #083821 15px);
+  background-size: 28px 14px;
+  background-repeat: repeat-x;
+}
+
+/* 3. Trama de micropuntos para el footer */
+.piru-dots-pattern {
+  background-image: radial-gradient(rgba(242, 238, 226, 0.22) 1.5px, transparent 1.5px);
+  background-size: 20px 20px;
+}
+
+/* ==========================================================================
+   SECCIÓN ¿CÓMO FUNCIONA? RETRO DINER
+   ========================================================================== */
+
+.como-funciona-container {
+  width: 100%;
+  max-width: 1152px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  padding-top: 4.5rem;
+  padding-bottom: 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.como-funciona-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .como-funciona-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .como-funciona-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.como-funciona-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 250px;
+  padding: 1.75rem 1.5rem;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.como-funciona-card:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-5px);
+  box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.5);
+}
+
+.como-funciona-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background-color: #f5b82e;
+  color: #083821;
+  box-shadow: 0 4px 14px rgba(245, 184, 46, 0.35);
+  transition: transform 0.25s ease;
+}
+
+.como-funciona-card:hover .como-funciona-icon {
+  transform: scale(1.1);
+}
+
+.como-funciona-num {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 9999px;
+  background-color: #f2eee2;
+  color: #083821;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 900;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+}
+
+/* ==========================================================================
+   OPTIMIZACIONES MÓVILES & IPHONE (SAFE AREAS)
+   ========================================================================== */
+
+.mobile-safe-bottom {
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+.footer-mobile-padding {
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* ==========================================================================
+   SISTEMA DE BOTONES ELEGANTES SANTOS (RETRO DINER)
+   ========================================================================== */
+
+.btn-santos-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: #f5b82e;
+  color: #083821;
+  font-family: var(--font-display);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 1rem;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 4px 14px -2px rgba(245, 184, 46, 0.45),
+    0 2px 4px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-santos-primary:hover {
+  background-color: #fac74e;
+  transform: translateY(-1.5px);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 8px 20px -3px rgba(245, 184, 46, 0.55),
+    0 3px 6px rgba(0, 0, 0, 0.08);
+}
+
+.btn-santos-primary:active {
+  transform: translateY(0.5px) scale(0.985);
+  box-shadow: 
+    inset 0 1px 2px rgba(0, 0, 0, 0.15),
+    0 2px 6px rgba(245, 184, 46, 0.3);
+}
+
+.btn-santos-dark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: #083821;
+  color: #f5b82e;
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 1rem;
+  border: 1px solid rgba(245, 184, 46, 0.3);
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 4px 12px -2px rgba(8, 56, 33, 0.35);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-santos-dark:hover {
+  background-color: #0c4228;
+  border-color: rgba(245, 184, 46, 0.5);
+  transform: translateY(-1.5px);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 8px 18px -3px rgba(8, 56, 33, 0.45);
+}
+
+.btn-santos-dark:active {
+  transform: translateY(0.5px) scale(0.985);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.btn-santos-glass {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-santos-glass:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.35);
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.btn-santos-glass:active {
+  transform: translateY(0.5px) scale(0.985);
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.btn-santos-light-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: #fbf9f3;
+  color: #083821;
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 1rem;
+  border: 1px solid rgba(8, 56, 33, 0.2);
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 2px 6px rgba(8, 56, 33, 0.05);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-santos-light-outline:hover {
+  background-color: #ffffff;
+  border-color: rgba(8, 56, 33, 0.45);
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 14px rgba(8, 56, 33, 0.1);
+}
+
+.btn-santos-light-outline:active {
+  transform: translateY(0.5px) scale(0.985);
+}
+/* ==========================================================================
+   PATRÓN RETRO DE COMIDAS (Burgers, Pizzas, Papas y Gaseosas)
+   ========================================================================== */
+.santos-food-pattern {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cg fill='none' stroke='%23f2eee2' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' opacity='0.3'%3E%3C!-- BURGER --%3E%3Cg transform='translate(45, 38) rotate(-14)'%3E%3Cpath d='M-18,-4 C-18,-18 18,-18 18,-4 Z'/%3E%3Crect x='-20' y='-2' width='40' height='6' rx='3'/%3E%3Cpath d='M-16,-2 L-8,5 L0,-2 L8,5 L16,-2'/%3E%3Cpath d='M-18,6 C-18,13 18,13 18,6 Z'/%3E%3C/g%3E%3C!-- PIZZA --%3E%3Cg transform='translate(140, 50) rotate(22)'%3E%3Cpath d='M-14,-15 Q0,-19 14,-15'/%3E%3Cpath d='M-14,-15 L0,18 L14,-15 Z'/%3E%3Ccircle cx='-2' cy='-4' r='2.5'/%3E%3Ccircle cx='4' cy='4' r='2'/%3E%3C/g%3E%3C!-- PAPAS FRITAS --%3E%3Cg transform='translate(42, 135) rotate(16)'%3E%3Cpath d='M-12,-2 L-9,16 L9,16 L12,-2 Z'/%3E%3Cpath d='M-8,-2 L-8,-14 M-3,-2 L-3,-17 M2,-2 L2,-13 M7,-2 L7,-15'/%3E%3C/g%3E%3C!-- GASEOSA CON SORBETE --%3E%3Cg transform='translate(142, 138) rotate(-18)'%3E%3Cpath d='M-10,-9 L-7,14 L7,14 L10,-9 Z'/%3E%3Cpath d='M-12,-9 L12,-9'/%3E%3Cpath d='M0,-9 L3,-18 L9,-20'/%3E%3C/g%3E%3C!-- DECORACIONES RETRO --%3E%3Cpath d='M90,22 Q90,26 94,26 Q90,26 90,30 Q90,26 86,26 Q90,26 90,22'/%3E%3Cpath d='M92,148 Q92,152 96,152 Q92,152 92,156 Q92,152 88,152 Q92,152 92,148'/%3E%3Ccircle cx='92' cy='90' r='1.5' fill='%23f2eee2'/%3E%3Ccircle cx='12' cy='90' r='1.5' fill='%23f2eee2'/%3E%3Ccircle cx='172' cy='90' r='1.5' fill='%23f2eee2'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 180px 180px;
 }

@@ -49,12 +49,18 @@ export const BUSINESS_CONFIG = {
 
   // Barrios y zonas con cobertura de envío
   deliveryZones: [
-    { zone: "Zona 1 (Centro / Almagro / Caballito)", fee: 1800, time: "25 - 35 min" },
-    { zone: "Zona 2 (Palermo / Villa Crespo / Belgrano)", fee: 2400, time: "35 - 45 min" },
-    { zone: "Zona 3 (Recoleta / Colegiales / Chacarita)", fee: 2800, time: "40 - 50 min" },
-    { zone: "Retiro en Local (Take Away)", fee: 0, time: "15 - 20 min" }
+    { zone: "Villa Carlos Paz", fee: 5000, time: "Cadete se abona aparte." },
   ]
 };
+
+// Devuelve el horario de apertura del próximo día con atención (buscando desde mañana)
+function getNextOpenTime(customSchedule, fromDay) {
+  for (let offset = 1; offset <= 7; offset++) {
+    const slot = customSchedule[(fromDay + offset) % 7];
+    if (slot && slot.open) return slot.open;
+  }
+  return null;
+}
 
 // =========================================================================
 // CALCULADORA DEL ESTADO DEL LOCAL EN TIEMPO REAL (ALFAJOR CON PAPAS BADGE)
@@ -100,10 +106,11 @@ export function getStoreStatus(customSchedule = BUSINESS_CONFIG.schedule, isManu
 
   // Si hoy no abre
   if (!todaySchedule) {
+    const nextOpen = getNextOpenTime(customSchedule, day);
     return {
       isOpen: false,
       badgeText: "Cerrado hoy",
-      detailText: "Abrimos mañana a las 19:30 hs",
+      detailText: nextOpen ? `Abrimos mañana a las ${nextOpen} hs` : "Volvemos pronto",
       colorClass: "bg-red-500/20 text-red-400 border-red-500/40",
       dotColor: "bg-red-500"
     };
@@ -142,10 +149,11 @@ export function getStoreStatus(customSchedule = BUSINESS_CONFIG.schedule, isManu
   }
 
   // Si ya cerró hoy
+  const nextOpen = getNextOpenTime(customSchedule, day);
   return {
     isOpen: false,
     badgeText: "Cocina cerrada por hoy",
-    detailText: "Volvemos mañana a las 19:30 hs",
+    detailText: nextOpen ? `Volvemos mañana a las ${nextOpen} hs` : "Volvemos pronto",
     colorClass: "bg-red-500/20 text-red-700 border-red-500/40",
     dotColor: "bg-red-500"
   };
