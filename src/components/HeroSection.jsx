@@ -169,8 +169,14 @@ export default function HeroSection() {
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [resetCount, setResetCount] = useState(0);
   const videoRef = useRef(null);
+  const canvasRef = useRef(null);
 
-  // Asegura que el video arranque siempre al entrar a la web (en PC y móvil)
+  // Detecta iPhone / iPad / pantallas táctiles para usar el Canvas anti-HDR
+  const [useCanvasMode] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return /iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
+  });
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -179,30 +185,52 @@ export default function HeroSection() {
     video.defaultMuted = true;
     video.playsInline = true;
 
-    const tryPlay = () => {
-      video.play().catch(() => {});
-    };
+    let animId;
+    const canvas = canvasRef.current;
+    const ctx = useCanvasMode && canvas ? canvas.getContext('2d', { alpha: false }) : null;
 
-    tryPlay();
-    video.addEventListener('loadedmetadata', tryPlay);
-    video.addEventListener('canplay', tryPlay);
-
-    // Por si el iPhone está en "Ahorro de batería", arranca al primer roce de pantalla
-    const unlockOnTouch = () => {
-      if (video.paused && !video.ended) {
-        video.play().catch(() => {});
+    const renderFrame = () => {
+      if (ctx && canvas && video.readyState >= 2 && video.videoWidth > 0) {
+        if (canvas.width !== video.videoWidth) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+        }
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      }
+      if (useCanvasMode && !video.paused && !video.ended) {
+        animId = requestAnimationFrame(renderFrame);
       }
     };
-    window.addEventListener('touchstart', unlockOnTouch, { once: true, passive: true });
-    window.addEventListener('click', unlockOnTouch, { once: true, passive: true });
+
+    const startPlayback = () => {
+      video.play().then(() => {
+        if (useCanvasMode) {
+          cancelAnimationFrame(animId);
+          animId = requestAnimationFrame(renderFrame);
+        }
+      }).catch(() => {});
+    };
+
+    startPlayback();
+    video.addEventListener('loadeddata', renderFrame);
+    video.addEventListener('play', renderFrame);
+    video.addEventListener('timeupdate', renderFrame);
+
+    const unlockTouch = () => {
+      if (video.paused && !video.ended) startPlayback();
+    };
+    window.addEventListener('touchstart', unlockTouch, { once: true, passive: true });
 
     return () => {
-      video.removeEventListener('loadedmetadata', tryPlay);
-      video.removeEventListener('canplay', tryPlay);
-      window.removeEventListener('touchstart', unlockOnTouch);
-      window.removeEventListener('click', unlockOnTouch);
+      cancelAnimationFrame(animId);
+      video.removeEventListener('loadeddata', renderFrame);
+      video.removeEventListener('play', renderFrame);
+      video.removeEventListener('timeupdate', renderFrame);
+      window.removeEventListener('touchstart', unlockTouch);
     };
-  }, []);
+  }, [useCanvasMode, resetCount]);
 
   const scrollToMenu = () => {
     const el = document.getElementById('menu-section');
@@ -213,7 +241,7 @@ export default function HeroSection() {
     if (videoRef.current) {
       setResetCount(c => c + 1);
       videoRef.current.currentTime = 0;
-      videoRef.current.play();
+      videoRef.current.play().catch(() => {});
     }
   };
 
@@ -225,13 +253,24 @@ export default function HeroSection() {
     }
   };
 
+  const maskStyles = {
+    mixBlendMode: 'multiply',
+    filter: 'brightness(1.12) contrast(1.06) saturate(1.05)',
+    WebkitTouchCallout: 'none',
+    userSelect: 'none',
+    maskImage: 'linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 99%), linear-gradient(to right, transparent 0%, black 8%, black 88%, rgba(0,0,0,0.5) 95%, transparent 100%)',
+    WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 99%), linear-gradient(to right, transparent 0%, black 8%, black 88%, rgba(0,0,0,0.5) 95%, transparent 100%)',
+    maskComposite: 'intersect',
+    WebkitMaskComposite: 'source-in'
+  };
+
   return (
-    <section className="hero-mobile-bright relative overflow-hidden bg-white sm:bg-[#0d0d0d] pt-2 sm:pt-20 lg:pt-24 pb-12 sm:pb-32 lg:pb-36 px-0 sm:px-6 lg:px-8 select-none">
+    <section className="relative overflow-hidden bg-white sm:bg-[#0d0d0d] pt-2 sm:pt-20 lg:pt-24 pb-12 sm:pb-32 lg:pb-36 px-0 sm:px-6 lg:px-8 select-none">
       
       <BackgroundWall />
 
       <div className="relative z-10 mx-auto max-w-6xl w-full px-4 sm:px-0">
-        <div className="hero-mobile-bright relative bg-white rounded-none sm:rounded-[36px] sm:border-2 sm:border-[#083821]/15 sm:shadow-[0_25px_60px_-10px_rgba(0,0,0,0.65)] overflow-hidden px-2 py-4 sm:px-10 sm:py-9 lg:px-12 lg:py-10 text-ink">
+        <div className="relative bg-white rounded-none sm:rounded-[36px] sm:border-2 sm:border-[#083821]/15 sm:shadow-[0_25px_60px_-10px_rgba(0,0,0,0.65)] overflow-hidden px-2 py-4 sm:px-10 sm:py-9 lg:px-12 lg:py-10 text-ink">
           
           <div className="grid items-center gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10">
             
@@ -276,38 +315,44 @@ export default function HeroSection() {
             {/* LADO DERECHO: LA BURGER REAL */}
             <div className="order-1 flex items-center justify-center lg:order-2">
               <div className="relative z-20 w-full max-w-[280px] sm:max-w-[380px] lg:max-w-[420px]">
-                <div className="hero-mobile-bright relative aspect-4/5 w-full overflow-hidden bg-white">
+                <div className="relative aspect-4/5 w-full overflow-hidden bg-white">
                   
                   {/* Neblina superior e inferior sutil */}
-                  <div className="absolute top-0 inset-x-0 h-12 bg-gradient-to-b from-white via-white/70 to-transparent pointer-events-none z-10" />
-                  <div className="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-white via-white/65 to-transparent pointer-events-none z-10" />
+                  <div className="absolute top-0 inset-x-0 h-12 bg-gradient-to-b from-white via-white/70 to-transparent pointer-events-none z-20" />
+                  <div className="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-white via-white/65 to-transparent pointer-events-none z-20" />
 
                   {/* Neblina lateral bien pegada a los bordes */}
-                  <div className="absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-white via-white/50 to-transparent pointer-events-none z-10" />
-                  <div className="absolute inset-y-0 right-0 w-8 sm:w-10 bg-gradient-to-l from-white via-white/75 to-transparent pointer-events-none z-10" />
+                  <div className="absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-white via-white/50 to-transparent pointer-events-none z-20" />
+                  <div className="absolute inset-y-0 right-0 w-8 sm:w-10 bg-gradient-to-l from-white via-white/75 to-transparent pointer-events-none z-20" />
 
+                  {/* En iPhone/móvil el <video> mide 1x1px (no prende el recuadro brillante OLED) y se dibuja en el <canvas>.
+                      En PC se muestra el <video> directo a tamaño completo. */}
                   <video
                     ref={videoRef}
                     onContextMenu={(e) => e.preventDefault()}
-                    className="santos-video-blend h-full w-full object-cover pointer-events-none select-none bg-white"
+                    className={
+                      useCanvasMode
+                        ? "pointer-events-none absolute bottom-0 left-0 h-px w-px opacity-[0.01]"
+                        : "h-full w-full object-cover pointer-events-none select-none bg-white"
+                    }
+                    style={useCanvasMode ? undefined : maskStyles}
                     autoPlay
                     muted
                     disablePictureInPicture
                     playsInline
                     preload="auto"
-                    style={{
-                      mixBlendMode: 'multiply',
-                      filter: 'brightness(1.12) contrast(1.06) saturate(1.05)',
-                      WebkitTouchCallout: 'none',
-                      userSelect: 'none',
-                      maskImage: 'linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 99%), linear-gradient(to right, transparent 0%, black 8%, black 88%, rgba(0,0,0,0.5) 95%, transparent 100%)',
-                      WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 99%), linear-gradient(to right, transparent 0%, black 8%, black 88%, rgba(0,0,0,0.5) 95%, transparent 100%)',
-                      maskComposite: 'intersect',
-                      WebkitMaskComposite: 'source-in'
-                    }}
                   >
                     <source src="/video/hero-burger.mp4" type="video/mp4" />
                   </video>
+
+                  {useCanvasMode && (
+                    <canvas
+                      ref={canvasRef}
+                      onContextMenu={(e) => e.preventDefault()}
+                      className="h-full w-full object-cover pointer-events-none select-none bg-white"
+                      style={maskStyles}
+                    />
+                  )}
                 </div>
 
                 {/* Botón de reset */}
