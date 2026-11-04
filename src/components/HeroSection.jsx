@@ -245,13 +245,20 @@ export default function HeroSection() {
             {/* LADO DERECHO: LA BURGER REAL */}
             <div className="order-1 flex items-center justify-center lg:order-2">
               <div className="relative z-20 w-full max-w-[280px] sm:max-w-[380px] lg:max-w-[420px]">
-                <div className="relative aspect-4/5 w-full overflow-hidden">
+                <div className="relative aspect-4/5 w-full overflow-hidden bg-white">
                   
-                  <div className="absolute top-0 inset-x-0 h-16 bg-gradient-to-b from-white via-white/80 to-transparent pointer-events-none z-10" />
+                  {/* Neblina superior e inferior sutil */}
+                  <div className="absolute top-0 inset-x-0 h-12 bg-gradient-to-b from-white via-white/70 to-transparent pointer-events-none z-10" />
+                  <div className="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-white via-white/65 to-transparent pointer-events-none z-10" />
+
+                  {/* Neblina lateral bien pegada a los bordes (sin invadir el centro) */}
+                  <div className="absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-white via-white/50 to-transparent pointer-events-none z-10" />
+                  <div className="absolute inset-y-0 right-0 w-8 sm:w-10 bg-gradient-to-l from-white via-white/75 to-transparent pointer-events-none z-10" />
 
                   <video
                     ref={videoRef}
-                    className="h-full w-full object-cover pointer-events-none select-none"
+                    onContextMenu={(e) => e.preventDefault()}
+                    className="h-full w-full object-cover pointer-events-none select-none bg-white"
                     autoPlay
                     muted
                     disablePictureInPicture
@@ -259,9 +266,11 @@ export default function HeroSection() {
                     preload="auto"
                     style={{
                       mixBlendMode: 'multiply',
-                      filter: 'brightness(1.2) saturate(1.05)',
-                      maskImage: 'linear-gradient(to bottom, transparent 0%, black 16%, black 85%, transparent 98%), linear-gradient(to right, transparent, black 15%, black 85%, transparent)',
-                      WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 16%, black 85%, transparent 98%), linear-gradient(to right, transparent, black 15%, black 85%, transparent)',
+                      filter: 'brightness(1.12) contrast(1.06) saturate(1.05)',
+                      WebkitTouchCallout: 'none',
+                      userSelect: 'none',
+                      maskImage: 'linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 99%), linear-gradient(to right, transparent 0%, black 8%, black 88%, rgba(0,0,0,0.5) 95%, transparent 100%)',
+                      WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 99%), linear-gradient(to right, transparent 0%, black 8%, black 88%, rgba(0,0,0,0.5) 95%, transparent 100%)',
                       maskComposite: 'intersect',
                       WebkitMaskComposite: 'source-in'
                     }}

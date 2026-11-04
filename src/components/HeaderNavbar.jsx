@@ -40,7 +40,7 @@ export default function HeaderNavbar({
   return (
     <>
       {/* Barra de Navegación Principal */}
-      <header className="sticky top-0 z-40 bg-[#f2eee2]/95 backdrop-blur-sm select-none border-b border-[#083821]/5">
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm select-none border-b border-transparent">
         <div className="mx-auto flex h-16 sm:h-20 max-w-6xl items-center justify-between px-5 sm:px-8">
           
           {/* Logo Santos */}
@@ -145,7 +145,7 @@ export default function HeaderNavbar({
 
         {/* Desplegable móvil */}
         {mobileMenuOpen && !isAdminView && (
-          <div className="md:hidden bg-[#f2eee2] border-t border-[#083821]/10 px-5 py-4 animate-fadeIn">
+          <div className="md:hidden bg-white border-t border-[#083821]/10 px-5 py-4 animate-fadeIn">
             <div className="flex flex-col gap-3 font-santos text-base uppercase text-[#083821]">
               <button 
                 onClick={() => scrollToSection('menu-section')} 
