@@ -190,12 +190,12 @@ export default function HeroSection() {
 
     let animId;
     const canvas = canvasRef.current;
-    // colorSpace 'srgb' fuerza un buffer SDR (evita que iOS dibuje el video en HDR/EDR)
-    const ctx = useCanvasMode && canvas ? canvas.getContext('2d', { alpha: false, colorSpace: 'srgb' }) : null;
+    const ctx = useCanvasMode && canvas ? canvas.getContext('2d', { alpha: false }) : null;
 
     // Pintar de blanco instantáneo para evitar el flash negro/transparente inicial
     if (ctx && canvas) {
-      ctx.fillStyle = '#ffffff';
+      const pureWhite = getComputedStyle(document.documentElement).getPropertyValue('--pure-white').trim() || '#ffffff';
+      ctx.fillStyle = pureWhite;
       ctx.fillRect(0, 0, canvas.width || 300, canvas.height || 150);
     }
 
@@ -205,7 +205,8 @@ export default function HeroSection() {
           canvas.width = video.videoWidth;
           canvas.height = video.videoHeight;
         }
-        ctx.fillStyle = '#ffffff';
+        const pureWhite = getComputedStyle(document.documentElement).getPropertyValue('--pure-white').trim() || '#ffffff';
+        ctx.fillStyle = pureWhite;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       }
@@ -285,15 +286,14 @@ export default function HeroSection() {
   const maskStyles = {
     ...baseMask,
     mixBlendMode: 'multiply',
-    filter: 'brightness(1.12) contrast(1.06) saturate(1.05)'
+    filter: 'brightness(1.03) contrast(1.06) saturate(1.04)'
   };
 
-  // iPhone/canvas: Aumentamos brillo para que el blanco del video sea 100% puro
-  // y no se vea más oscuro que el fondo de la página al usar multiply.
+  // iPhone/canvas: Brillo mínimo para limpiar el fondo sin generar brillo HDR excesivo.
   const canvasStyles = {
     ...baseMask,
     mixBlendMode: 'multiply',
-    filter: 'brightness(1.18) contrast(1.08) saturate(1.05)'
+    filter: 'brightness(1.03) contrast(1.06) saturate(1.04)'
   };
 
   return (
@@ -350,12 +350,12 @@ export default function HeroSection() {
                 <div className="relative aspect-4/5 w-full overflow-hidden bg-white-iphone-sync bg-white">
                   
                   {/* Neblina superior e inferior sutil */}
-                  <div className="absolute top-0 inset-x-0 h-12 bg-gradient-to-b from-white via-white/70 to-transparent pointer-events-none z-20" />
-                  <div className="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-white via-white/65 to-transparent pointer-events-none z-20" />
+                  <div className="absolute top-0 inset-x-0 h-12 bg-gradient-to-b from-[var(--pure-white)] via-[var(--pure-white)]/70 to-transparent pointer-events-none z-20" />
+                  <div className="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-[var(--pure-white)] via-[var(--pure-white)]/65 to-transparent pointer-events-none z-20" />
 
                   {/* Neblina lateral bien pegada a los bordes */}
-                  <div className="absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-white via-white/50 to-transparent pointer-events-none z-20" />
-                  <div className="absolute inset-y-0 right-0 w-8 sm:w-10 bg-gradient-to-l from-white via-white/75 to-transparent pointer-events-none z-20" />
+                  <div className="absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-[var(--pure-white)] via-[var(--pure-white)]/50 to-transparent pointer-events-none z-20" />
+                  <div className="absolute inset-y-0 right-0 w-8 sm:w-10 bg-gradient-to-l from-[var(--pure-white)] via-[var(--pure-white)]/75 to-transparent pointer-events-none z-20" />
 
                   {/* En iPhone/móvil el <video> mide 1x1px (no prende el recuadro brillante OLED) y se dibuja en el <canvas>.
                       En PC se muestra el <video> directo a tamaño completo. */}
