@@ -190,14 +190,8 @@ export default function HeroSection() {
 
     let animId;
     const canvas = canvasRef.current;
-    const ctx = useCanvasMode && canvas ? canvas.getContext('2d', { alpha: false }) : null;
-
-    // Pintar de blanco instantáneo para evitar el flash negro/transparente inicial
-    if (ctx && canvas) {
-      const pureWhite = getComputedStyle(document.documentElement).getPropertyValue('--pure-white').trim() || '#ffffff';
-      ctx.fillStyle = pureWhite;
-      ctx.fillRect(0, 0, canvas.width || 300, canvas.height || 150);
-    }
+    // Habilitamos alpha para poder hacer transparencia real si fuera necesario
+    const ctx = useCanvasMode && canvas ? canvas.getContext('2d', { alpha: true }) : null;
 
     const renderFrame = () => {
       if (ctx && canvas && video.readyState >= 2 && video.videoWidth > 0) {
@@ -205,9 +199,13 @@ export default function HeroSection() {
           canvas.width = video.videoWidth;
           canvas.height = video.videoHeight;
         }
-        const pureWhite = getComputedStyle(document.documentElement).getPropertyValue('--pure-white').trim() || '#ffffff';
-        ctx.fillStyle = pureWhite;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Limpiamos el canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Aplicamos un filtro interno para asegurar que el blanco del video sea PURO
+        // Esto hace que el multiply de CSS sea 100% efectivo
+        ctx.filter = 'brightness(1.06) contrast(1.1)';
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       }
       
@@ -286,23 +284,25 @@ export default function HeroSection() {
   const maskStyles = {
     ...baseMask,
     mixBlendMode: 'multiply',
-    filter: 'brightness(1.03) contrast(1.06) saturate(1.04)'
+    filter: 'brightness(1.02) contrast(1.05)'
   };
 
-  // iPhone/canvas: Brillo mínimo para limpiar el fondo sin generar brillo HDR excesivo.
+  // iPhone/canvas: El filtro ya se aplica dentro del canvas (ctx.filter)
+  // Aquí solo mantenemos el multiply para la transparencia sobre el crema.
   const canvasStyles = {
     ...baseMask,
     mixBlendMode: 'multiply',
-    filter: 'brightness(1.03) contrast(1.06) saturate(1.04)'
+    filter: 'none',
+    willChange: 'transform'
   };
 
   return (
-    <section className="relative overflow-hidden bg-white-iphone-sync bg-white sm:bg-[#0d0d0d] pt-2 sm:pt-20 lg:pt-24 pb-12 sm:pb-32 lg:pb-36 px-0 sm:px-6 lg:px-8 select-none">
+    <section className="relative overflow-hidden bg-[#f2eee2] sm:bg-[#0d0d0d] pt-2 sm:pt-20 lg:pt-24 pb-12 sm:pb-32 lg:pb-36 px-0 sm:px-6 lg:px-8 select-none">
       
       <BackgroundWall />
 
       <div className="relative z-10 mx-auto max-w-6xl w-full px-4 sm:px-0">
-        <div className="relative bg-white-iphone-sync bg-white rounded-none sm:rounded-[36px] sm:border-2 sm:border-[#083821]/15 sm:shadow-[0_25px_60px_-10px_rgba(0,0,0,0.65)] overflow-hidden px-2 py-4 sm:px-10 sm:py-9 lg:px-12 lg:py-10 text-ink">
+        <div className="relative bg-[#f2eee2] rounded-none sm:rounded-[36px] sm:border-2 sm:border-[#083821]/15 sm:shadow-[0_25px_60px_-10px_rgba(0,0,0,0.65)] overflow-hidden px-2 py-4 sm:px-10 sm:py-9 lg:px-12 lg:py-10 text-ink">
           
           <div className="grid items-center gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10">
             
@@ -347,15 +347,15 @@ export default function HeroSection() {
             {/* LADO DERECHO: LA BURGER REAL */}
             <div className="order-1 flex items-center justify-center lg:order-2">
               <div className="relative z-20 w-full max-w-[280px] sm:max-w-[380px] lg:max-w-[420px]">
-                <div className="relative aspect-4/5 w-full overflow-hidden bg-white-iphone-sync bg-white">
+                <div className="relative aspect-4/5 w-full overflow-hidden bg-[#f2eee2]">
                   
                   {/* Neblina superior e inferior sutil */}
-                  <div className="absolute top-0 inset-x-0 h-12 bg-gradient-to-b from-[var(--pure-white)] via-[var(--pure-white)]/70 to-transparent pointer-events-none z-20" />
-                  <div className="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-[var(--pure-white)] via-[var(--pure-white)]/65 to-transparent pointer-events-none z-20" />
+                  <div className="absolute top-0 inset-x-0 h-12 bg-gradient-to-b from-[#f2eee2] via-[#f2eee2]/70 to-transparent pointer-events-none z-20" />
+                  <div className="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-[#f2eee2] via-[#f2eee2]/65 to-transparent pointer-events-none z-20" />
 
                   {/* Neblina lateral bien pegada a los bordes */}
-                  <div className="absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-[var(--pure-white)] via-[var(--pure-white)]/50 to-transparent pointer-events-none z-20" />
-                  <div className="absolute inset-y-0 right-0 w-8 sm:w-10 bg-gradient-to-l from-[var(--pure-white)] via-[var(--pure-white)]/75 to-transparent pointer-events-none z-20" />
+                  <div className="absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-[#f2eee2] via-[#f2eee2]/50 to-transparent pointer-events-none z-20" />
+                  <div className="absolute inset-y-0 right-0 w-8 sm:w-10 bg-gradient-to-l from-[#f2eee2] via-[#f2eee2]/75 to-transparent pointer-events-none z-20" />
 
                   {/* En iPhone/móvil el <video> mide 1x1px (no prende el recuadro brillante OLED) y se dibuja en el <canvas>.
                       En PC se muestra el <video> directo a tamaño completo. */}
@@ -365,7 +365,7 @@ export default function HeroSection() {
                     className={
                       useCanvasMode
                         ? "hero-video-sdr pointer-events-none absolute bottom-0 left-0 h-px w-px opacity-[0.01]"
-                        : "hero-video-sdr h-full w-full object-cover pointer-events-none select-none bg-white-iphone-sync bg-white"
+                        : "hero-video-sdr h-full w-full object-cover pointer-events-none select-none bg-[#f2eee2]"
                     }
                     style={useCanvasMode ? undefined : maskStyles}
                     autoPlay
@@ -381,7 +381,7 @@ export default function HeroSection() {
                     <canvas
                       ref={canvasRef}
                       onContextMenu={(e) => e.preventDefault()}
-                      className="hero-video-sdr h-full w-full object-cover pointer-events-none select-none bg-white-iphone-sync bg-white"
+                      className="hero-video-sdr h-full w-full object-cover pointer-events-none select-none bg-[#f2eee2]"
                       style={canvasStyles}
                     />
                   )}

@@ -303,19 +303,10 @@
   -webkit-dynamic-range-limit: standard;
 }
 
-/* Sincronización de blanco puro para iPhone (OLED Display-P3) */
-:root {
-  --pure-white: #ffffff;
-}
-
+/* Sincronización de fondo para evitar recuadros de video */
 @media (max-width: 768px) {
-  :root {
-    --pure-white: color(display-p3 1 1 1);
-  }
-  html, body, .bg-white-iphone-sync {
-    background-color: var(--pure-white) !important;
-    -webkit-backface-visibility: hidden;
-    backface-visibility: hidden;
+  html, body {
+    background-color: #f2eee2 !important;
   }
 }
 

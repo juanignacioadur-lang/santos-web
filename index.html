@@ -29,6 +29,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Pacifico&display=swap" rel="stylesheet">
+
+    <!-- EVITAR FLASH INICIAL: Sincronizar fondo antes de que cargue React -->
+    <style>
+      :root { --bg-initial: #f2eee2; }
+      body { background-color: var(--bg-initial) !important; }
+      #root { background-color: var(--bg-initial); min-height: 100vh; }
+    </style>
   </head>
 
   <body class="bg-[#f2eee2] text-[#083821] antialiased overflow-x-hidden min-h-screen">
