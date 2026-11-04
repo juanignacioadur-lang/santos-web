@@ -445,3 +445,20 @@
   background-repeat: repeat;
   background-size: 180px 180px;
 }
+/* ==========================================================================
+   APAGAR BRILLO HDR / EDR DE IPHONE EN EL VIDEO DEL HERO
+   ========================================================================== */
+.santos-hero-video {
+  /* Desactiva el boost de brillo XDR/HDR en pantallas OLED de iPhone */
+  dynamic-range-limit: standard;
+  -webkit-dynamic-range-limit: standard;
+  color-scheme: light only;
+
+  /* En modo multiply sobre fondo #ffffff, el video JAMÁS puede brillar más que el fondo */
+  mix-blend-mode: multiply;
+  filter: brightness(1.06) contrast(1.06);
+
+  -webkit-touch-callout: none;
+  user-select: none;
+  background-color: #ffffff;
+}
