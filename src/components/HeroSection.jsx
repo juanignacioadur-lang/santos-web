@@ -49,14 +49,17 @@ const AnimatedTitle = memo(function AnimatedTitle({ videoRef, resetTrigger }) {
         setFillProgress(Math.min(100, Math.max(0, percent)));
       }
       if (!video.paused && !video.ended) {
+        cancelAnimationFrame(animId);
         animId = requestAnimationFrame(syncText);
       }
     };
 
-    const handlePlay = () => {
+    const triggerSync = () => {
       cancelAnimationFrame(animId);
       animId = requestAnimationFrame(syncText);
     };
+
+    const handlePlay = () => triggerSync();
 
     const handleEnded = () => {
       cancelAnimationFrame(animId);
@@ -69,7 +72,7 @@ const AnimatedTitle = memo(function AnimatedTitle({ videoRef, resetTrigger }) {
     video.addEventListener('ended', handleEnded);
 
     if (!video.paused && !video.ended) {
-      animId = requestAnimationFrame(syncText);
+      triggerSync();
     }
 
     return () => {
@@ -190,6 +193,12 @@ export default function HeroSection() {
     // colorSpace 'srgb' fuerza un buffer SDR (evita que iOS dibuje el video en HDR/EDR)
     const ctx = useCanvasMode && canvas ? canvas.getContext('2d', { alpha: false, colorSpace: 'srgb' }) : null;
 
+    // Pintar de blanco instantáneo para evitar el flash negro/transparente inicial
+    if (ctx && canvas) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width || 300, canvas.height || 150);
+    }
+
     const renderFrame = () => {
       if (ctx && canvas && video.readyState >= 2 && video.videoWidth > 0) {
         if (canvas.width !== video.videoWidth) {
@@ -200,23 +209,30 @@ export default function HeroSection() {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       }
+      
+      // Solo pedimos el siguiente frame si el video está reproduciéndose
       if (useCanvasMode && !video.paused && !video.ended) {
+        cancelAnimationFrame(animId);
+        animId = requestAnimationFrame(renderFrame);
+      }
+    };
+
+    const triggerRender = () => {
+      if (useCanvasMode) {
+        cancelAnimationFrame(animId);
         animId = requestAnimationFrame(renderFrame);
       }
     };
 
     const startPlayback = () => {
       video.play().then(() => {
-        if (useCanvasMode) {
-          cancelAnimationFrame(animId);
-          animId = requestAnimationFrame(renderFrame);
-        }
+        triggerRender();
       }).catch(() => {});
     };
 
     startPlayback();
     video.addEventListener('loadeddata', renderFrame);
-    video.addEventListener('play', renderFrame);
+    video.addEventListener('play', triggerRender);
     video.addEventListener('timeupdate', renderFrame);
 
     const unlockTouch = () => {
@@ -272,20 +288,21 @@ export default function HeroSection() {
     filter: 'brightness(1.12) contrast(1.06) saturate(1.05)'
   };
 
-  // iPhone/canvas: sin boost de brillo (evita que el fondo blanco se vea más claro que la página)
+  // iPhone/canvas: Aumentamos brillo para que el blanco del video sea 100% puro
+  // y no se vea más oscuro que el fondo de la página al usar multiply.
   const canvasStyles = {
     ...baseMask,
     mixBlendMode: 'multiply',
-    filter: 'contrast(1.04) saturate(1.05)'
+    filter: 'brightness(1.18) contrast(1.08) saturate(1.05)'
   };
 
   return (
-    <section className="relative overflow-hidden bg-white sm:bg-[#0d0d0d] pt-2 sm:pt-20 lg:pt-24 pb-12 sm:pb-32 lg:pb-36 px-0 sm:px-6 lg:px-8 select-none">
+    <section className="relative overflow-hidden bg-white-iphone-sync bg-white sm:bg-[#0d0d0d] pt-2 sm:pt-20 lg:pt-24 pb-12 sm:pb-32 lg:pb-36 px-0 sm:px-6 lg:px-8 select-none">
       
       <BackgroundWall />
 
       <div className="relative z-10 mx-auto max-w-6xl w-full px-4 sm:px-0">
-        <div className="relative bg-white rounded-none sm:rounded-[36px] sm:border-2 sm:border-[#083821]/15 sm:shadow-[0_25px_60px_-10px_rgba(0,0,0,0.65)] overflow-hidden px-2 py-4 sm:px-10 sm:py-9 lg:px-12 lg:py-10 text-ink">
+        <div className="relative bg-white-iphone-sync bg-white rounded-none sm:rounded-[36px] sm:border-2 sm:border-[#083821]/15 sm:shadow-[0_25px_60px_-10px_rgba(0,0,0,0.65)] overflow-hidden px-2 py-4 sm:px-10 sm:py-9 lg:px-12 lg:py-10 text-ink">
           
           <div className="grid items-center gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10">
             
@@ -330,7 +347,7 @@ export default function HeroSection() {
             {/* LADO DERECHO: LA BURGER REAL */}
             <div className="order-1 flex items-center justify-center lg:order-2">
               <div className="relative z-20 w-full max-w-[280px] sm:max-w-[380px] lg:max-w-[420px]">
-                <div className="relative aspect-4/5 w-full overflow-hidden bg-white">
+                <div className="relative aspect-4/5 w-full overflow-hidden bg-white-iphone-sync bg-white">
                   
                   {/* Neblina superior e inferior sutil */}
                   <div className="absolute top-0 inset-x-0 h-12 bg-gradient-to-b from-white via-white/70 to-transparent pointer-events-none z-20" />
@@ -348,7 +365,7 @@ export default function HeroSection() {
                     className={
                       useCanvasMode
                         ? "hero-video-sdr pointer-events-none absolute bottom-0 left-0 h-px w-px opacity-[0.01]"
-                        : "hero-video-sdr h-full w-full object-cover pointer-events-none select-none bg-white"
+                        : "hero-video-sdr h-full w-full object-cover pointer-events-none select-none bg-white-iphone-sync bg-white"
                     }
                     style={useCanvasMode ? undefined : maskStyles}
                     autoPlay
@@ -364,7 +381,7 @@ export default function HeroSection() {
                     <canvas
                       ref={canvasRef}
                       onContextMenu={(e) => e.preventDefault()}
-                      className="hero-video-sdr h-full w-full object-cover pointer-events-none select-none bg-white"
+                      className="hero-video-sdr h-full w-full object-cover pointer-events-none select-none bg-white-iphone-sync bg-white"
                       style={canvasStyles}
                     />
                   )}

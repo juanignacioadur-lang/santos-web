@@ -315,7 +315,7 @@ export default function App() {
   const isAnyModalOpen = isCartOpen || Boolean(customizingProduct) || Boolean(checkoutOrderSummary) || isCookieModalOpen;
 
   return (
-    <div className="min-h-screen bg-[#f2eee2] text-[#083821] antialiased overflow-x-hidden flex flex-col">
+    <div className="min-h-screen bg-white-iphone-sync bg-[#f2eee2] text-[#083821] antialiased overflow-x-hidden flex flex-col">
       <HeaderNavbar
         cartCount={cartTotalItems}
         cartTotal={cartGrandTotal}
@@ -344,7 +344,7 @@ export default function App() {
           />
         </main>
       ) : (
-        <main className="flex-1">
+        <main className="flex-1 bg-white-iphone-sync bg-[#f2eee2]">
           {/* HERO */}
           <HeroSection />
 
