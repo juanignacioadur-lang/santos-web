@@ -462,3 +462,27 @@
   user-select: none;
   background-color: #ffffff;
 }
+/* ==========================================================================
+   IGUALAR EL BLANCO Y BRILLO DEL FONDO Y NAVBAR CON EL VIDEO EN MÓVILES
+   ========================================================================== */
+@media (max-width: 639px) {
+  /* Fuerza el blanco máximo de pantalla OLED (Display-P3) en el body, navbar y hero */
+  html,
+  body,
+  header.sticky,
+  .hero-mobile-bright {
+    background-color: #ffffff !important;
+    background-color: color(display-p3 1 1 1) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Iguala la curva de color del video con el contenedor blanco */
+  .santos-video-blend {
+    mix-blend-mode: multiply;
+    filter: brightness(1.12) contrast(1.08);
+    background-color: color(display-p3 1 1 1) !important;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+}
