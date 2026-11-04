@@ -187,7 +187,8 @@ export default function HeroSection() {
 
     let animId;
     const canvas = canvasRef.current;
-    const ctx = useCanvasMode && canvas ? canvas.getContext('2d', { alpha: false }) : null;
+    // colorSpace 'srgb' fuerza un buffer SDR (evita que iOS dibuje el video en HDR/EDR)
+    const ctx = useCanvasMode && canvas ? canvas.getContext('2d', { alpha: false, colorSpace: 'srgb' }) : null;
 
     const renderFrame = () => {
       if (ctx && canvas && video.readyState >= 2 && video.videoWidth > 0) {
@@ -253,15 +254,29 @@ export default function HeroSection() {
     }
   };
 
-  const maskStyles = {
-    mixBlendMode: 'multiply',
-    filter: 'brightness(1.12) contrast(1.06) saturate(1.05)',
+  const maskGradient = 'linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 99%), linear-gradient(to right, transparent 0%, black 8%, black 88%, rgba(0,0,0,0.5) 95%, transparent 100%)';
+
+  const baseMask = {
     WebkitTouchCallout: 'none',
     userSelect: 'none',
-    maskImage: 'linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 99%), linear-gradient(to right, transparent 0%, black 8%, black 88%, rgba(0,0,0,0.5) 95%, transparent 100%)',
-    WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 99%), linear-gradient(to right, transparent 0%, black 8%, black 88%, rgba(0,0,0,0.5) 95%, transparent 100%)',
+    maskImage: maskGradient,
+    WebkitMaskImage: maskGradient,
     maskComposite: 'intersect',
     WebkitMaskComposite: 'source-in'
+  };
+
+  // PC: video a tamaño completo sobre la tarjeta blanca
+  const maskStyles = {
+    ...baseMask,
+    mixBlendMode: 'multiply',
+    filter: 'brightness(1.12) contrast(1.06) saturate(1.05)'
+  };
+
+  // iPhone/canvas: sin boost de brillo (evita que el fondo blanco se vea más claro que la página)
+  const canvasStyles = {
+    ...baseMask,
+    mixBlendMode: 'multiply',
+    filter: 'contrast(1.04) saturate(1.05)'
   };
 
   return (
@@ -332,8 +347,8 @@ export default function HeroSection() {
                     onContextMenu={(e) => e.preventDefault()}
                     className={
                       useCanvasMode
-                        ? "pointer-events-none absolute bottom-0 left-0 h-px w-px opacity-[0.01]"
-                        : "h-full w-full object-cover pointer-events-none select-none bg-white"
+                        ? "hero-video-sdr pointer-events-none absolute bottom-0 left-0 h-px w-px opacity-[0.01]"
+                        : "hero-video-sdr h-full w-full object-cover pointer-events-none select-none bg-white"
                     }
                     style={useCanvasMode ? undefined : maskStyles}
                     autoPlay
@@ -349,8 +364,8 @@ export default function HeroSection() {
                     <canvas
                       ref={canvasRef}
                       onContextMenu={(e) => e.preventDefault()}
-                      className="h-full w-full object-cover pointer-events-none select-none bg-white"
-                      style={maskStyles}
+                      className="hero-video-sdr h-full w-full object-cover pointer-events-none select-none bg-white"
+                      style={canvasStyles}
                     />
                   )}
                 </div>

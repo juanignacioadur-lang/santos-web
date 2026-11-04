@@ -296,6 +296,13 @@
    OPTIMIZACIONES MÓVILES & IPHONE (SAFE AREAS)
    ========================================================================== */
 
+/* Apaga el boost de brillo HDR/EDR (XDR) de iPhone en el video del hero:
+   sin esto el blanco del video se ve más brilloso que el fondo de la página. */
+.hero-video-sdr {
+  dynamic-range-limit: standard;
+  -webkit-dynamic-range-limit: standard;
+}
+
 .mobile-safe-bottom {
   bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
 }
