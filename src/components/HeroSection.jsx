@@ -175,10 +175,7 @@ export default function HeroSection() {
   const canvasRef = useRef(null);
 
   // Detecta iPhone / iPad / pantallas táctiles para usar el Canvas anti-HDR
-  const [useCanvasMode] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return /iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
-  });
+  const [useCanvasMode] = useState(true);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -190,8 +187,8 @@ export default function HeroSection() {
 
     let animId;
     const canvas = canvasRef.current;
-    // Habilitamos alpha para poder hacer transparencia real si fuera necesario
-    const ctx = useCanvasMode && canvas ? canvas.getContext('2d', { alpha: true }) : null;
+    // Habilitamos alpha para transparencia real y desincronizamos para mejor performance
+    const ctx = canvas ? canvas.getContext('2d', { alpha: true, desynchronized: true }) : null;
 
     const renderFrame = () => {
       if (ctx && canvas && video.readyState >= 2 && video.videoWidth > 0) {
@@ -200,17 +197,30 @@ export default function HeroSection() {
           canvas.height = video.videoHeight;
         }
         
-        // Limpiamos el canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Aplicamos un filtro interno para asegurar que el blanco del video sea PURO
-        // Esto hace que el multiply de CSS sea 100% efectivo
-        ctx.filter = 'brightness(1.06) contrast(1.1)';
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // BORRADOR DE FONDO REAL (Chroma Key Blanco)
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i], g = data[i+1], b = data[i+2];
+          
+          // Si el píxel es muy claro, lo hacemos transparente
+          if (r > 245 && g > 245 && b > 245) {
+            data[i + 3] = 0;
+          } else if (r > 210 && g > 210 && b > 210) {
+            // Suavizado de bordes
+            const avg = (r + g + b) / 3;
+            const alpha = (255 - avg) * 2.5; 
+            data[i + 3] = Math.min(data[i + 3], alpha);
+          }
+        }
+        ctx.putImageData(imageData, 0, 0);
       }
       
-      // Solo pedimos el siguiente frame si el video está reproduciéndose
-      if (useCanvasMode && !video.paused && !video.ended) {
+      if (!video.paused && !video.ended) {
         cancelAnimationFrame(animId);
         animId = requestAnimationFrame(renderFrame);
       }
@@ -280,18 +290,15 @@ export default function HeroSection() {
     WebkitMaskComposite: 'source-in'
   };
 
-  // PC: video a tamaño completo sobre la tarjeta blanca
+  // PC: transparencia real (sin multiply para evitar oscurecer)
   const maskStyles = {
     ...baseMask,
-    mixBlendMode: 'multiply',
     filter: 'brightness(1.02) contrast(1.05)'
   };
 
-  // iPhone/canvas: El filtro ya se aplica dentro del canvas (ctx.filter)
-  // Aquí solo mantenemos el multiply para la transparencia sobre el crema.
+  // iPhone/PC Canvas: Transparencia real mediante borrador de píxeles
   const canvasStyles = {
     ...baseMask,
-    mixBlendMode: 'multiply',
     filter: 'none',
     willChange: 'transform'
   };
