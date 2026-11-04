@@ -34,7 +34,7 @@ const COLUMNS = [
   [FONDO_IMAGES[9], FONDO_IMAGES[4], FONDO_IMAGES[14]],
 ];
 
-// 1. SUB-COMPONENTE AISLADO: Se anima a 60 FPS sin lag
+// 1. SUB-COMPONENTE AISLADO: Se anima a 60 FPS sincronizado con el video
 const AnimatedTitle = memo(function AnimatedTitle({ videoRef, resetTrigger }) {
   const [fillProgress, setFillProgress] = useState(0);
 
@@ -58,12 +58,21 @@ const AnimatedTitle = memo(function AnimatedTitle({ videoRef, resetTrigger }) {
       animId = requestAnimationFrame(syncText);
     };
 
+    const handleTimeUpdate = () => {
+      if (video.duration && !isNaN(video.duration)) {
+        const percent = (video.currentTime / video.duration) * 100;
+        setFillProgress(Math.min(100, Math.max(0, percent)));
+      }
+    };
+
     const handleEnded = () => {
       cancelAnimationFrame(animId);
       setFillProgress(100);
     };
 
     video.addEventListener('play', handlePlay);
+    video.addEventListener('playing', handlePlay);
+    video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('ended', handleEnded);
 
     if (!video.paused && !video.ended) {
@@ -73,6 +82,8 @@ const AnimatedTitle = memo(function AnimatedTitle({ videoRef, resetTrigger }) {
     return () => {
       cancelAnimationFrame(animId);
       video.removeEventListener('play', handlePlay);
+      video.removeEventListener('playing', handlePlay);
+      video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('ended', handleEnded);
     };
   }, [videoRef, resetTrigger]);
@@ -84,7 +95,7 @@ const AnimatedTitle = memo(function AnimatedTitle({ videoRef, resetTrigger }) {
 
   return (
     <h1 className="font-santos text-[54px] sm:text-[76px] md:text-[74px] lg:text-[90px] uppercase leading-[0.92] select-none text-left tracking-tight">
-      {/* LÍNEA DE ARRIBA: "Dos tapas." (Se pinta segunda) */}
+      {/* LÍNEA DE ARRIBA: "Dos tapas." */}
       <span className="relative block">
         <span className="text-[#083821]/20">Dos tapas.</span>
         <span 
@@ -96,7 +107,7 @@ const AnimatedTitle = memo(function AnimatedTitle({ videoRef, resetTrigger }) {
         </span>
       </span>
 
-      {/* LÍNEA DE ABAJO: "Un relleno." (Se pinta primera) */}
+      {/* LÍNEA DE ABAJO: "Un relleno." */}
       <span className="relative block mt-0.5 sm:mt-1">
         <span className="text-[#083821]/20">Un relleno.</span>
         <span 
@@ -169,6 +180,70 @@ export default function HeroSection() {
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [resetCount, setResetCount] = useState(0);
   const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+
+  // Dibuja el video en el <canvas> a 60fps y fuerza reproducción automática
+  useEffect(() => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+
+    const ctx = canvas.getContext('2d', { alpha: false });
+    let animId;
+
+    const drawCover = () => {
+      if (video.readyState >= 2 && video.videoWidth > 0) {
+        // Aspecto 4:5 de alta definición
+        const targetW = 720;
+        const targetH = 900;
+        if (canvas.width !== targetW) {
+          canvas.width = targetW;
+          canvas.height = targetH;
+        }
+
+        const vw = video.videoWidth;
+        const vh = video.videoHeight;
+        const scale = Math.max(targetW / vw, targetH / vh);
+        const sw = targetW / scale;
+        const sh = targetH / scale;
+        const sx = (vw - sw) / 2;
+        const sy = (vh - sh) / 2;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, targetW, targetH);
+        ctx.drawImage(video, sx, sy, sw, sh, 0, 0, targetW, targetH);
+      }
+
+      if (!video.paused && !video.ended) {
+        animId = requestAnimationFrame(drawCover);
+      }
+    };
+
+    const startLoop = () => {
+      cancelAnimationFrame(animId);
+      animId = requestAnimationFrame(drawCover);
+    };
+
+    video.addEventListener('play', startLoop);
+    video.addEventListener('playing', startLoop);
+    video.addEventListener('loadeddata', drawCover);
+    video.addEventListener('timeupdate', drawCover);
+
+    // Forzar play al montar el componente
+    video.muted = true;
+    const playPromise = video.play();
+    if (playPromise !== undefined) {
+      playPromise.then(startLoop).catch(() => {});
+    }
+
+    return () => {
+      cancelAnimationFrame(animId);
+      video.removeEventListener('play', startLoop);
+      video.removeEventListener('playing', startLoop);
+      video.removeEventListener('loadeddata', drawCover);
+      video.removeEventListener('timeupdate', drawCover);
+    };
+  }, [resetCount]);
 
   const scrollToMenu = () => {
     const el = document.getElementById('menu-section');
@@ -192,13 +267,11 @@ export default function HeroSection() {
   };
 
   return (
-    // En móviles: bg-white limpio. En computadoras: bg-[#0d0d0d] con fotos de fondo
     <section className="relative overflow-hidden bg-white sm:bg-[#0d0d0d] pt-2 sm:pt-20 lg:pt-24 pb-12 sm:pb-32 lg:pb-36 px-0 sm:px-6 lg:px-8 select-none">
       
       {/* Fondo de Posters: Oculto en móviles */}
       <BackgroundWall />
 
-      {/* Contenedor central: En móviles es blanco, plano y sin marco; en PC es la tarjeta flotante */}
       <div className="relative z-10 mx-auto max-w-6xl w-full px-4 sm:px-0">
         <div className="relative bg-white rounded-none sm:rounded-[36px] sm:border-2 sm:border-[#083821]/15 sm:shadow-[0_25px_60px_-10px_rgba(0,0,0,0.65)] overflow-hidden px-2 py-4 sm:px-10 sm:py-9 lg:px-12 lg:py-10 text-ink">
           
@@ -255,29 +328,34 @@ export default function HeroSection() {
                   <div className="absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-white via-white/50 to-transparent pointer-events-none z-20" />
                   <div className="absolute inset-y-0 right-0 w-8 sm:w-10 bg-gradient-to-l from-white via-white/75 to-transparent pointer-events-none z-20" />
 
-                  {/* CONTENEDOR CON LA MÁSCARA (Separado del video para que Safari iOS no rompa el multiply) */}
-                  <div
-                    className="h-full w-full bg-white"
+                  {/* El <video> está adentro del contenedor (para que Chrome/Safari no lo pause nunca),
+                      pero tapado detrás de una cortina blanca y del <canvas> para que iPhone no prenda el HDR */}
+                  <video
+                    ref={videoRef}
+                    src="/video/hero-burger.mp4"
+                    className="absolute inset-0 h-full w-full object-cover pointer-events-none z-0"
+                    autoPlay
+                    muted
+                    playsInline
+                    disablePictureInPicture
+                    preload="auto"
+                  />
+                  <div className="absolute inset-0 bg-white z-[5] pointer-events-none" />
+
+                  {/* Canvas visible en SDR puro */}
+                  <canvas
+                    ref={canvasRef}
+                    onContextMenu={(e) => e.preventDefault()}
+                    className="relative z-10 h-full w-full object-cover pointer-events-none select-none bg-white"
                     style={{
+                      mixBlendMode: 'multiply',
+                      filter: 'brightness(1.08) contrast(1.06)',
                       maskImage: 'linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 99%), linear-gradient(to right, transparent 0%, black 8%, black 88%, rgba(0,0,0,0.5) 95%, transparent 100%)',
                       WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 99%), linear-gradient(to right, transparent 0%, black 8%, black 88%, rgba(0,0,0,0.5) 95%, transparent 100%)',
                       maskComposite: 'intersect',
                       WebkitMaskComposite: 'source-in'
                     }}
-                  >
-                    <video
-                      ref={videoRef}
-                      onContextMenu={(e) => e.preventDefault()}
-                      className="santos-hero-video h-full w-full object-cover pointer-events-none select-none"
-                      autoPlay
-                      muted
-                      disablePictureInPicture
-                      playsInline
-                      preload="auto"
-                    >
-                      <source src="/video/hero-burger.mp4" type="video/mp4" />
-                    </video>
-                  </div>
+                  />
                 </div>
 
                 {/* Botón de reset */}
