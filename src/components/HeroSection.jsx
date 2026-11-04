@@ -381,7 +381,7 @@ export default function HeroSection() {
                     playsInline
                     preload="auto"
                   >
-                    <source src="/video/hero-burger.mp4" type="video/mp4" />
+                    <source src="/video/hero-burger.webm" type="video/webm" />
                   </video>
 
                   {useCanvasMode && (
