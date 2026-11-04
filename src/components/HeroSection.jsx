@@ -174,8 +174,14 @@ export default function HeroSection() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
-  // Detecta iPhone / iPad / pantallas táctiles para usar el Canvas anti-HDR
-  const [useCanvasMode] = useState(true);
+  // En móviles (iPhone y Android) usa el Canvas con el MP4 limpio (igual que en tu iPhone).
+  // En PC usa el MP4 directo con mixBlendMode: multiply para que la sombra quede de estudio fotográfico.
+  const [useCanvasMode] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const ua = navigator.userAgent || '';
+    const isTouchDevice = /iPhone|iPad|iPod|Android/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    return isTouchDevice || window.innerWidth < 768;
+  });
 
   useEffect(() => {
     const video = videoRef.current;
@@ -187,10 +193,11 @@ export default function HeroSection() {
 
     let animId;
     const canvas = canvasRef.current;
-    // Habilitamos alpha para transparencia real y desincronizamos para mejor performance
-    const ctx = canvas ? canvas.getContext('2d', { alpha: true, desynchronized: true }) : null;
+    const ctx = useCanvasMode && canvas ? canvas.getContext('2d', { alpha: true, desynchronized: true }) : null;
 
     const renderFrame = () => {
+      if (!useCanvasMode) return;
+
       if (ctx && canvas && video.readyState >= 2 && video.videoWidth > 0) {
         if (canvas.width !== video.videoWidth) {
           canvas.width = video.videoWidth;
@@ -200,18 +207,16 @@ export default function HeroSection() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        // BORRADOR DE FONDO REAL (Chroma Key Blanco)
+        // BORRADOR DE FONDO REAL SOBRE EL MP4 ORIGINAL (funciona idéntico en iPhone y Android)
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageData.data;
         
         for (let i = 0; i < data.length; i += 4) {
-          const r = data[i], g = data[i+1], b = data[i+2];
+          const r = data[i], g = data[i + 1], b = data[i + 2];
           
-          // Si el píxel es muy claro, lo hacemos transparente
           if (r > 245 && g > 245 && b > 245) {
             data[i + 3] = 0;
           } else if (r > 210 && g > 210 && b > 210) {
-            // Suavizado de bordes
             const avg = (r + g + b) / 3;
             const alpha = (255 - avg) * 2.5; 
             data[i + 3] = Math.min(data[i + 3], alpha);
@@ -248,13 +253,15 @@ export default function HeroSection() {
       if (video.paused && !video.ended) startPlayback();
     };
     window.addEventListener('touchstart', unlockTouch, { once: true, passive: true });
+    window.addEventListener('click', unlockTouch, { once: true, passive: true });
 
     return () => {
       cancelAnimationFrame(animId);
       video.removeEventListener('loadeddata', renderFrame);
-      video.removeEventListener('play', renderFrame);
+      video.removeEventListener('play', triggerRender);
       video.removeEventListener('timeupdate', renderFrame);
       window.removeEventListener('touchstart', unlockTouch);
+      window.removeEventListener('click', unlockTouch);
     };
   }, [useCanvasMode, resetCount]);
 
@@ -290,13 +297,14 @@ export default function HeroSection() {
     WebkitMaskComposite: 'source-in'
   };
 
-  // PC: transparencia real (sin multiply para evitar oscurecer)
-  const maskStyles = {
+  // En PC: sobre tarjeta blanca (sm:bg-white), multiply funde el fondo blanco del MP4 y deja la sombra perfecta
+  const pcVideoStyles = {
     ...baseMask,
-    filter: 'brightness(1.02) contrast(1.05)'
+    mixBlendMode: 'multiply',
+    filter: 'brightness(1.12) contrast(1.05) saturate(1.05)'
   };
 
-  // iPhone/PC Canvas: Transparencia real mediante borrador de píxeles
+  // En iPhone y Android: Canvas con transparencia real (intacto como en tu iPhone)
   const canvasStyles = {
     ...baseMask,
     filter: 'none',
@@ -309,7 +317,7 @@ export default function HeroSection() {
       <BackgroundWall />
 
       <div className="relative z-10 mx-auto max-w-6xl w-full px-4 sm:px-0">
-        <div className="relative bg-[#f2eee2] rounded-none sm:rounded-[36px] sm:border-2 sm:border-[#083821]/15 sm:shadow-[0_25px_60px_-10px_rgba(0,0,0,0.65)] overflow-hidden px-2 py-4 sm:px-10 sm:py-9 lg:px-12 lg:py-10 text-ink">
+        <div className="relative bg-[#f2eee2] sm:bg-white rounded-none sm:rounded-[36px] sm:border-2 sm:border-[#083821]/15 sm:shadow-[0_25px_60px_-10px_rgba(0,0,0,0.65)] overflow-hidden px-2 py-4 sm:px-10 sm:py-9 lg:px-12 lg:py-10 text-ink">
           
           <div className="grid items-center gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10">
             
@@ -354,34 +362,33 @@ export default function HeroSection() {
             {/* LADO DERECHO: LA BURGER REAL */}
             <div className="order-1 flex items-center justify-center lg:order-2">
               <div className="relative z-20 w-full max-w-[280px] sm:max-w-[380px] lg:max-w-[420px]">
-                <div className="relative aspect-4/5 w-full overflow-hidden bg-[#f2eee2]">
+                <div className="relative aspect-4/5 w-full overflow-hidden bg-[#f2eee2] sm:bg-white">
                   
-                  {/* Neblina superior e inferior sutil */}
-                  <div className="absolute top-0 inset-x-0 h-12 bg-gradient-to-b from-[#f2eee2] via-[#f2eee2]/70 to-transparent pointer-events-none z-20" />
-                  <div className="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-[#f2eee2] via-[#f2eee2]/65 to-transparent pointer-events-none z-20" />
+                  {/* Neblina superior e inferior (crema en móvil, blanca en PC) */}
+                  <div className="absolute top-0 inset-x-0 h-12 bg-gradient-to-b from-[#f2eee2] via-[#f2eee2]/70 sm:from-white sm:via-white/70 to-transparent pointer-events-none z-20" />
+                  <div className="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-[#f2eee2] via-[#f2eee2]/65 sm:from-white sm:via-white/65 to-transparent pointer-events-none z-20" />
 
                   {/* Neblina lateral bien pegada a los bordes */}
-                  <div className="absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-[#f2eee2] via-[#f2eee2]/50 to-transparent pointer-events-none z-20" />
-                  <div className="absolute inset-y-0 right-0 w-8 sm:w-10 bg-gradient-to-l from-[#f2eee2] via-[#f2eee2]/75 to-transparent pointer-events-none z-20" />
+                  <div className="absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-[#f2eee2] via-[#f2eee2]/50 sm:from-white sm:via-white/50 to-transparent pointer-events-none z-20" />
+                  <div className="absolute inset-y-0 right-0 w-8 sm:w-10 bg-gradient-to-l from-[#f2eee2] via-[#f2eee2]/75 sm:from-white sm:via-white/75 to-transparent pointer-events-none z-20" />
 
-                  {/* En iPhone/móvil el <video> mide 1x1px (no prende el recuadro brillante OLED) y se dibuja en el <canvas>.
-                      En PC se muestra el <video> directo a tamaño completo. */}
+                  {/* Usamos hero-burger.mp4 en todos los dispositivos para que Android y PC tengan la misma sombra limpia que el iPhone */}
                   <video
                     ref={videoRef}
                     onContextMenu={(e) => e.preventDefault()}
                     className={
                       useCanvasMode
                         ? "hero-video-sdr pointer-events-none absolute bottom-0 left-0 h-px w-px opacity-[0.01]"
-                        : "hero-video-sdr h-full w-full object-cover pointer-events-none select-none bg-[#f2eee2]"
+                        : "hero-video-sdr h-full w-full object-cover pointer-events-none select-none bg-white"
                     }
-                    style={useCanvasMode ? undefined : maskStyles}
+                    style={useCanvasMode ? undefined : pcVideoStyles}
                     autoPlay
                     muted
                     disablePictureInPicture
                     playsInline
                     preload="auto"
                   >
-                    <source src="/video/hero-burger.webm" type="video/webm" />
+                    <source src="/video/hero-burger.mp4" type="video/mp4" />
                   </video>
 
                   {useCanvasMode && (

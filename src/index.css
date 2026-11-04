@@ -33,7 +33,7 @@
      Evita que el navbar y los contenidos salten a la derecha/izquierda al cambiar de pestaña */
   html {
     scroll-behavior: smooth;
-    background-color: #ffffff;
+    background-color: #f2eee2;
     color: #083821;
     touch-action: manipulation;
     margin: 0;
@@ -46,7 +46,7 @@
 
   body {
     font-family: var(--font-body);
-    background-color: #ffffff;
+    background-color: #f2eee2;
     max-width: 100vw;
     overflow-x: clip;
     min-height: 100vh;
@@ -296,14 +296,13 @@
    OPTIMIZACIONES MÓVILES & IPHONE (SAFE AREAS)
    ========================================================================== */
 
-/* Apaga el boost de brillo HDR/EDR (XDR) de iPhone en el video del hero:
-   sin esto el blanco del video se ve más brilloso que el fondo de la página. */
+/* Apaga el boost de brillo HDR/EDR (XDR) de iPhone en el video del hero */
 .hero-video-sdr {
   dynamic-range-limit: standard;
   -webkit-dynamic-range-limit: standard;
 }
 
-/* Sincronización de fondo para evitar recuadros de video */
+/* Sincronización de fondo para evitar recuadros de video en móviles (INTACTO) */
 @media (max-width: 768px) {
   html, body {
     background-color: #f2eee2 !important;
