@@ -43,7 +43,22 @@ function CategoryHeader({ index, title, detail }) {
 }
 
 export default function App() {
-  const [products, setProducts] = useState(INITIAL_MENU);
+  // 0. Lee primero los productos guardados; si es la 1ra visita espera a Supabase sin mostrar los viejos
+  const [products, setProducts] = useState(() => {
+    try {
+      const saved = localStorage.getItem('santos_menu_products');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return INITIAL_MENU;
+  });
+
+  // Si ya hay caché local arranca en true; si es un visitante virgen espera ~150ms a Supabase
+  const [isCatalogReady, setIsCatalogReady] = useState(() => {
+    return Boolean(localStorage.getItem('santos_menu_products'));
+  });
   const [selectedCategory, setSelectedCategory] = useState('todos');
   const [isAdminView, setIsAdminView] = useState(false);
   const [isCookieModalOpen, setIsCookieModalOpen] = useState(false);
@@ -182,51 +197,57 @@ export default function App() {
   }, [cart]);
 
   // Carga segura desde Supabase (Orden correcto de variables)
+ // Carga ultra rápida en paralelo desde Supabase
   useEffect(() => {
     const loadCloudData = async () => {
-      // 1. Cargar productos
-      const { data: cloudProducts } = await getMenuProducts();
-      if (cloudProducts && Array.isArray(cloudProducts) && cloudProducts.length > 0) {
-        setProducts(cloudProducts);
-      }
+      try {
+        const [{ data: cloudProducts }, { data: cloudSettings }] = await Promise.all([
+          getMenuProducts(),
+          getStoreSettings()
+        ]);
 
-      // 2. Cargar configuraciones de la tienda (declaración antes de su uso)
-      const { data: cloudSettings } = await getStoreSettings();
-      if (cloudSettings) {
-        if (cloudSettings.categories && Array.isArray(cloudSettings.categories) && cloudSettings.categories.length > 0) {
-          setCategories(cloudSettings.categories);
-          localStorage.setItem('santos_categories', JSON.stringify(cloudSettings.categories));
+        if (cloudProducts && Array.isArray(cloudProducts) && cloudProducts.length > 0) {
+          setProducts(cloudProducts);
         }
 
-        if (cloudSettings.toppings && Array.isArray(cloudSettings.toppings) && cloudSettings.toppings.length > 0) {
-          setToppings(cloudSettings.toppings);
-          localStorage.setItem('santos_toppings', JSON.stringify(cloudSettings.toppings));
-        }
+        if (cloudSettings) {
+          if (Array.isArray(cloudSettings.categories) && cloudSettings.categories.length > 0) {
+            setCategories(cloudSettings.categories);
+            localStorage.setItem('santos_categories', JSON.stringify(cloudSettings.categories));
+          }
 
-        if (cloudSettings.admin_password) {
-          setAdminPassword(cloudSettings.admin_password);
-          localStorage.setItem('santos_admin_pwd', cloudSettings.admin_password);
-        }
+          if (Array.isArray(cloudSettings.toppings) && cloudSettings.toppings.length > 0) {
+            setToppings(cloudSettings.toppings);
+            localStorage.setItem('santos_toppings', JSON.stringify(cloudSettings.toppings));
+          }
 
-        setBankingInfo({
-          titular: cloudSettings.titular || BUSINESS_CONFIG.banking.titular,
-          bankName: cloudSettings.bank_name || BUSINESS_CONFIG.banking.bankName,
-          alias: cloudSettings.alias || BUSINESS_CONFIG.banking.alias,
-          cvu: cloudSettings.cvu || BUSINESS_CONFIG.banking.cvu,
-          cuit: cloudSettings.cuit || BUSINESS_CONFIG.banking.cuit,
-          whatsappKitchen: cloudSettings.whatsapp || BUSINESS_CONFIG.banking.whatsappKitchen
-        });
-        
-        setBusinessInfo({
-          name: cloudSettings.name || BUSINESS_CONFIG.name,
-          address: cloudSettings.address || BUSINESS_CONFIG.address,
-          city: cloudSettings.city || BUSINESS_CONFIG.city,
-          instagram: cloudSettings.instagram || BUSINESS_CONFIG.instagram,
-          deliveryTime: cloudSettings.delivery_time || BUSINESS_CONFIG.deliveryTime,
-          takeawayTime: cloudSettings.takeaway_time || BUSINESS_CONFIG.takeawayTime,
-          schedule: cloudSettings.schedule || BUSINESS_CONFIG.schedule,
-          isManualClosed: Boolean(cloudSettings.is_manual_closed)
-        });
+          if (cloudSettings.admin_password) {
+            setAdminPassword(cloudSettings.admin_password);
+            localStorage.setItem('santos_admin_pwd', cloudSettings.admin_password);
+          }
+
+          setBankingInfo({
+            titular: cloudSettings.titular || BUSINESS_CONFIG.banking.titular,
+            bankName: cloudSettings.bank_name || BUSINESS_CONFIG.banking.bankName,
+            alias: cloudSettings.alias || BUSINESS_CONFIG.banking.alias,
+            cvu: cloudSettings.cvu || BUSINESS_CONFIG.banking.cvu,
+            cuit: cloudSettings.cuit || BUSINESS_CONFIG.banking.cuit,
+            whatsappKitchen: cloudSettings.whatsapp || BUSINESS_CONFIG.banking.whatsappKitchen
+          });
+
+          setBusinessInfo({
+            name: cloudSettings.name || BUSINESS_CONFIG.name,
+            address: cloudSettings.address || BUSINESS_CONFIG.address,
+            city: cloudSettings.city || BUSINESS_CONFIG.city,
+            instagram: cloudSettings.instagram || BUSINESS_CONFIG.instagram,
+            deliveryTime: cloudSettings.delivery_time || BUSINESS_CONFIG.deliveryTime,
+            takeawayTime: cloudSettings.takeaway_time || BUSINESS_CONFIG.takeawayTime,
+            schedule: cloudSettings.schedule || BUSINESS_CONFIG.schedule,
+            isManualClosed: Boolean(cloudSettings.is_manual_closed)
+          });
+        }
+      } finally {
+        setIsCatalogReady(true);
       }
     };
 

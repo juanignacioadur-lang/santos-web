@@ -49,7 +49,7 @@ export const BUSINESS_CONFIG = {
 
   // Barrios y zonas con cobertura de envío
   deliveryZones: [
-    { zone: "Villa Carlos Paz", fee: 5000, time: "Cadete se abona aparte." },
+    { zone: "Villa Carlos Paz", fee: 5000, time: "35 a 45 min. (aprox)" },
   ]
 };
 
