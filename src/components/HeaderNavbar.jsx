@@ -29,12 +29,23 @@ export default function HeaderNavbar({
     if (isAdminView) {
       onToggleAdmin(); // Si está en el admin, regresa a la tienda y scrollea
     }
+    
+    // Pequeño delay para asegurar que el DOM esté listo si cambiamos de vista
     setTimeout(() => {
       const element = document.getElementById(id);
       if (element) {
-        element.scrollIntoView({ behavior: 'smooth' });
+        const offset = 80; // Altura aproximada del header
+        const bodyRect = document.body.getBoundingClientRect().top;
+        const elementRect = element.getBoundingClientRect().top;
+        const elementPosition = elementRect - bodyRect;
+        const offsetPosition = elementPosition - offset;
+
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: 'smooth'
+        });
       }
-    }, 100);
+    }, isAdminView ? 300 : 50);
   };
 
   return (

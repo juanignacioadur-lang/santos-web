@@ -527,7 +527,14 @@ export default function AdminDashboard({
         return { ...prev, schedule };
       }
       if (!schedule[day]) return prev;
-      schedule[day] = { ...schedule[day], [field]: value };
+      
+      // Si el valor es vacío, lo eliminamos del objeto (para open2/close2)
+      const newDayConfig = { ...schedule[day], [field]: value };
+      if (value === "") {
+        delete newDayConfig[field];
+      }
+      
+      schedule[day] = newDayConfig;
       return { ...prev, schedule };
     });
   };
@@ -1567,24 +1574,63 @@ export default function AdminDashboard({
                     </div>
 
                     {dayConfig ? (
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold text-zinc-500 uppercase">Abre</span>
-                          <input 
-                            type="time" 
-                            value={dayConfig.open} 
-                            onChange={(e) => handleScheduleChange(day, 'open', e.target.value)}
-                            className="bg-[#fbf9f3] border border-zinc-300 rounded-lg px-2 py-1 text-xs font-mono"
-                          />
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-6">
+                        {/* Turno 1 */}
+                        <div className="flex items-center gap-3">
+                          <span className="text-[9px] font-black text-zinc-400 uppercase w-10">Turno 1</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-zinc-500 uppercase">Abre</span>
+                            <input 
+                              type="time" 
+                              value={dayConfig.open} 
+                              onChange={(e) => handleScheduleChange(day, 'open', e.target.value)}
+                              className="bg-[#fbf9f3] border border-zinc-300 rounded-lg px-2 py-1 text-xs font-mono"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-zinc-500 uppercase">Cierra</span>
+                            <input 
+                              type="time" 
+                              value={dayConfig.close} 
+                              onChange={(e) => handleScheduleChange(day, 'close', e.target.value)}
+                              className="bg-[#fbf9f3] border border-zinc-300 rounded-lg px-2 py-1 text-xs font-mono"
+                            />
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold text-zinc-500 uppercase">Cierra</span>
-                          <input 
-                            type="time" 
-                            value={dayConfig.close} 
-                            onChange={(e) => handleScheduleChange(day, 'close', e.target.value)}
-                            className="bg-[#fbf9f3] border border-zinc-300 rounded-lg px-2 py-1 text-xs font-mono"
-                          />
+
+                        {/* Turno 2 (Opcional) */}
+                        <div className="flex items-center gap-3 border-t sm:border-t-0 sm:border-l border-zinc-200 pt-2 sm:pt-0 sm:pl-6">
+                          <span className="text-[9px] font-black text-zinc-400 uppercase w-10">Turno 2</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-zinc-500 uppercase">Abre</span>
+                            <input 
+                              type="time" 
+                              value={dayConfig.open2 || ""} 
+                              onChange={(e) => handleScheduleChange(day, 'open2', e.target.value)}
+                              className="bg-[#fbf9f3] border border-zinc-300 rounded-lg px-2 py-1 text-xs font-mono"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-zinc-500 uppercase">Cierra</span>
+                            <input 
+                              type="time" 
+                              value={dayConfig.close2 || ""} 
+                              onChange={(e) => handleScheduleChange(day, 'close2', e.target.value)}
+                              className="bg-[#fbf9f3] border border-zinc-300 rounded-lg px-2 py-1 text-xs font-mono"
+                            />
+                          </div>
+                          {(dayConfig.open2 || dayConfig.close2) && (
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                handleScheduleChange(day, 'open2', "");
+                                handleScheduleChange(day, 'close2', "");
+                              }}
+                              className="text-[9px] font-bold text-red-500 hover:underline uppercase"
+                            >
+                              Limpiar
+                            </button>
+                          )}
                         </div>
                       </div>
                     ) : (

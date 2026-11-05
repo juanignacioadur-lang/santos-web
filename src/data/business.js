@@ -22,16 +22,16 @@ export const BUSINESS_CONFIG = {
     whatsappKitchen: "5491100000000" // WhatsApp oficial que recibe la comanda de cocina
   },
 
-  // Horarios de cocina (formato 24hs: [apertura, cierre])
+  // Horarios de cocina (formato 24hs: { open: "HH:MM", close: "HH:MM", open2?: "HH:MM", close2?: "HH:MM" })
   // 0 = Domingo, 1 = Lunes, 2 = Martes, etc.
   schedule: {
     0: { open: "19:45", close: "23:30", label: "Domingo" },
-    1: { open: "19:45", close: "23:00", label: "Lunes" },
-    2: { open: "19:45", close: "23:00", label: "Martes" },
-    3: { open: "19:45", close: "23:15", label: "Miércoles" },
-    4: { open: "19:45", close: "23:25", label: "Jueves" },
-    5: { open: "19:45", close: "23:45", label: "Viernes" },
-    6: { open: "19:45", close: "23:45", label: "Sábado" },
+    1: { open: "11:00", close: "14:00", open2: "19:45", close2: "23:00", label: "Lunes" },
+    2: { open: "11:00", close: "14:00", open2: "19:45", close2: "23:00", label: "Martes" },
+    3: { open: "11:00", close: "14:00", open2: "19:45", close2: "23:15", label: "Miércoles" },
+    4: { open: "11:00", close: "14:00", open2: "19:45", close2: "23:25", label: "Jueves" },
+    5: { open: "11:00", close: "14:00", open2: "19:45", close2: "23:45", label: "Viernes" },
+    6: { open: "11:00", close: "14:00", open2: "19:45", close2: "23:45", label: "Sábado" },
   },
 
   // Textos para la cinta continua inclinada (estilo Alfajor con Papas)
@@ -116,33 +116,48 @@ export function getStoreStatus(customSchedule = BUSINESS_CONFIG.schedule, isManu
     };
   }
 
-  const openTimeMinutes = toMinutes(todaySchedule.open);
-  let closeTimeMinutes = toMinutes(todaySchedule.close);
-
   // Manejo de horarios que cruzan la medianoche (ej: 00:45)
-  if (closeTimeMinutes < openTimeMinutes) {
-    closeTimeMinutes += 24 * 60;
-  }
+  const checkTime = (openStr, closeStr) => {
+    if (!openStr || !closeStr) return false;
+    const open = toMinutes(openStr);
+    let close = toMinutes(closeStr);
+    if (close < open) close += 24 * 60;
+    return currentMinutes >= open && currentMinutes <= close;
+  };
 
-  // Verificación si estamos dentro del turno
-  const isCurrentlyOpen = currentMinutes >= openTimeMinutes && currentMinutes <= closeTimeMinutes;
+  const isCurrentlyOpen = checkTime(todaySchedule.open, todaySchedule.close) || 
+                          (todaySchedule.open2 && checkTime(todaySchedule.open2, todaySchedule.close2));
 
   if (isCurrentlyOpen) {
+    const currentClose = (todaySchedule.open2 && checkTime(todaySchedule.open2, todaySchedule.close2)) 
+      ? todaySchedule.close2 
+      : todaySchedule.close;
     return {
       isOpen: true,
-      badgeText: `Abierto - hasta las ${todaySchedule.close}`,
+      badgeText: `Abierto - hasta las ${currentClose}`,
       detailText: "Tomando pedidos online en tiempo real",
       colorClass: "bg-emerald-500/20 text-[#083821] border-emerald-500/40",
       dotColor: "bg-emerald-500"
     };
   }
 
-  // Si todavía no abrió hoy
-  if (currentMinutes < openTimeMinutes) {
+  // Si todavía no abrió hoy (primer turno)
+  if (currentMinutes < toMinutes(todaySchedule.open)) {
     return {
       isOpen: false,
       badgeText: `Abre hoy a las ${todaySchedule.open}`,
       detailText: "Podés programar tu pedido con anticipación",
+      colorClass: "bg-amber-500/20 text-amber-800 border-amber-500/40",
+      dotColor: "bg-amber-500"
+    };
+  }
+
+  // Si estamos en el medio (si hay segundo turno)
+  if (todaySchedule.open2 && currentMinutes < toMinutes(todaySchedule.open2)) {
+    return {
+      isOpen: false,
+      badgeText: `Reabre hoy a las ${todaySchedule.open2}`,
+      detailText: "Podés programar tu pedido para la noche",
       colorClass: "bg-amber-500/20 text-amber-800 border-amber-500/40",
       dotColor: "bg-amber-500"
     };

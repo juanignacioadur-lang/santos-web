@@ -34,9 +34,23 @@ export default function Footer({
   const DAY_NAMES = { 1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sábado', 0: 'Domingo' };
   const hours = [1, 2, 3, 4, 5, 6, 0].map((day) => {
     const slot = businessInfo.schedule ? businessInfo.schedule[day] : null;
+    let timeValue = 'Cerrado';
+    if (slot) {
+      if (slot.open2 && slot.close2) {
+        timeValue = (
+          <div className="flex items-center gap-1.5 whitespace-nowrap">
+            <span>{slot.open} a {slot.close}</span>
+            <span>y</span>
+            <span>{slot.open2} a {slot.close2}</span>
+          </div>
+        );
+      } else {
+        timeValue = `${slot.open} a ${slot.close}`;
+      }
+    }
     return {
       label: DAY_NAMES[day],
-      value: slot ? `${slot.open} – ${slot.close}` : 'Cerrado',
+      value: timeValue,
       isToday: day === TODAY_INDEX,
     };
   });
@@ -148,7 +162,7 @@ export default function Footer({
                 {hours.map((h) => (
                   <li
                     key={h.label}
-                    className="flex items-center justify-between gap-6 border-b border-white/5 pb-2 text-[12px] font-medium"
+                    className="flex items-center justify-between gap-4 border-b border-white/5 pb-2 text-[12px] font-medium"
                   >
                     <span className={`flex items-center gap-2 ${h.isToday ? 'text-[#eb623a] font-black' : 'text-white/60'}`}>
                       {h.label}
@@ -158,9 +172,9 @@ export default function Footer({
                         </span>
                       )}
                     </span>
-                    <span className={`font-mono text-[12px] ${h.isToday ? 'text-[#eb623a] font-bold' : 'text-white/80'}`}>
+                    <div className={`font-mono text-[11px] sm:text-[12px] text-right ${h.isToday ? 'text-[#eb623a] font-bold' : 'text-white/80'}`}>
                       {h.value}
-                    </span>
+                    </div>
                   </li>
                 ))}
               </ul>

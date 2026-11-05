@@ -92,7 +92,7 @@ const AnimatedTitle = memo(function AnimatedTitle({ videoRef, resetTrigger }) {
   return (
     <h1 className="font-santos text-[54px] sm:text-[76px] md:text-[74px] lg:text-[90px] uppercase leading-[0.92] select-none text-left tracking-tight">
       <span className="relative block">
-        <span className="text-[#083821]/20">UN SABOR ÚNICO,</span>
+        <span className="text-[#083821]/20">UN SABOR UNICO</span>
         <span 
           className="absolute inset-0 text-[#083821] overflow-hidden will-change-[clip-path]"
           style={{ clipPath: `inset(0 ${Math.max(0, 100 - progressDosTapas)}% 0 0)` }}
