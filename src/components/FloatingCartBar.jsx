@@ -17,21 +17,21 @@ export default function FloatingCartBar({
     <div className="fixed mobile-safe-bottom inset-x-0 z-50 flex justify-center px-4 pointer-events-none animate-fadeIn select-none">
       <div 
         onClick={onOpenCart}
-        className="pointer-events-auto flex items-center justify-between gap-4 bg-[#f2eee2] border-2 border-[#083821] pl-5 pr-2 py-2 rounded-full shadow-[0_12px_32px_rgba(0,0,0,0.35)] transition-transform duration-200 active:scale-[0.98] cursor-pointer"
+        className="pointer-events-auto flex items-center justify-between gap-2 sm:gap-4 bg-[#f2eee2] border-2 border-[#083821] pl-4 sm:pl-5 pr-1.5 sm:pr-2 py-1.5 sm:py-2 rounded-full shadow-[0_12px_32px_rgba(0,0,0,0.35)] transition-transform duration-200 active:scale-[0.98] cursor-pointer max-w-[95vw] sm:max-w-none"
       >
-        <div className="flex items-center gap-2 text-left">
-          <span className="font-heading text-xs sm:text-sm uppercase tracking-wide text-[#083821]">
+        <div className="flex items-center gap-1.5 sm:gap-2 text-left">
+          <span className="font-heading text-[10px] sm:text-sm uppercase tracking-wide text-[#083821]">
             Ver mi pedido
           </span>
-          <span className="text-[#083821]/40">•</span>
-          <span className="text-xs font-bold text-[#083821]/70">
+          <span className="text-[#083821]/40 text-[10px] sm:text-sm">•</span>
+          <span className="text-[10px] sm:text-xs font-bold text-[#083821]/70 whitespace-nowrap">
             {safeCount} {safeCount === 1 ? 'producto' : 'productos'}
           </span>
         </div>
 
-        <div className="flex items-center gap-2 bg-[#eb623a] text-white font-heading text-xs sm:text-sm uppercase tracking-wider px-4 py-2 rounded-full shadow-sm font-bold">
-          <span>${safeTotal.toLocaleString('es-AR')}</span>
-          <ArrowRight className="size-4 stroke-[3]" />
+        <div className="flex items-center gap-1.5 sm:gap-2 bg-[#eb623a] text-white font-heading text-[11px] sm:text-sm uppercase tracking-wider px-3 sm:px-4 py-1.5 sm:py-2 rounded-full shadow-sm font-bold">
+          <span className="whitespace-nowrap">${safeTotal.toLocaleString('es-AR')}</span>
+          <ArrowRight className="size-3.5 sm:size-4 stroke-[3]" />
         </div>
       </div>
     </div>

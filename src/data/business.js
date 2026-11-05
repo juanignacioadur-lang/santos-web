@@ -37,14 +37,14 @@ export const BUSINESS_CONFIG = {
   // Textos para la cinta continua inclinada (estilo Alfajor con Papas)
   // Se intercalan con el bloque "SMASHING HAPPINESS WITH EVERY BURGER"
   marqueeItems: [
-    "SANTOS CHEESE SIGNATURE",
-    "SMASHING HAPPINESS",
-    "DOBLE CARNE 100% VACUNO",
-    "PAN DE PAPA BRIOCHE",
-    "PICKLES HECHOS EN CASA",
+    "CALIDAD 100% SANTOS",
+    "BURGERS ARTESANALES",
+    "ADICTIVO Y CASERO",
+    "PAN DE LOMO ÚNICO",
+    "TOPPINGS HECHOS A MANO",
     "PAPAS FRITAS BIEN CALIENTES",
-    "SANTOS ONION HOUSE",
-    "REAL CHEESE ONLY"
+    "LOMOS CERTIFICADO SANTOS",
+    "FOODCLUB"
   ],
 
   // Barrios y zonas con cobertura de envío

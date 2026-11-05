@@ -87,11 +87,11 @@ export default function CustomizerModal({
 
   return (
     <div 
-      className="fixed inset-0 z-[120] bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 select-none animate-fadeIn" 
+      className="fixed inset-0 z-[120] bg-black/75 backdrop-blur-sm flex items-center justify-center p-0 sm:p-4 select-none animate-fadeIn overflow-hidden" 
       onClick={onClose}
     >
       <div 
-        className="bg-[#f2eee2] text-[#083821] border-2 border-[#083821] rounded-[32px] w-full max-w-lg max-h-[92vh] flex flex-col justify-between shadow-2xl overflow-hidden relative"
+        className="bg-[#f2eee2] text-[#083821] border-0 sm:border-2 border-[#083821] rounded-none sm:rounded-[32px] w-full h-full sm:h-auto sm:max-w-lg sm:max-h-[92vh] flex flex-col justify-between shadow-2xl overflow-hidden relative"
         onClick={(e) => e.stopPropagation()}
       >
         
@@ -113,7 +113,7 @@ export default function CustomizerModal({
             <div className="flex-1 min-w-0 text-left">
               <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.1em] text-[#f5b82e] mb-1">
                 <Flame className="w-3 h-3 fill-[#f5b82e]" />
-                <span>Custom Santos</span>
+                <span>PERSONALIZAR</span>
               </span>
 
               <h3 className="font-heading text-lg sm:text-xl uppercase text-[#083821] leading-[1.1] mb-1">
@@ -121,7 +121,7 @@ export default function CustomizerModal({
               </h3>
 
               {ingredientsText && (
-                <p className="text-[11px] text-zinc-500 line-clamp-2 leading-snug font-medium mb-1.5">
+                <p className="text-[11px] text-zinc-500 leading-snug font-medium mb-1.5">
                   {ingredientsText}
                 </p>
               )}
@@ -144,7 +144,7 @@ export default function CustomizerModal({
         </div>
 
         {/* 2. LISTA DE EXTRAS / TOPPINGS DINÁMICOS */}
-        <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-7 text-left scrollbar-hide">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-5 sm:p-6 space-y-7 text-left scrollbar-hide">
           {filteredToppings.length > 0 ? (
             <div className="space-y-4">
               <div className="flex items-center justify-between">

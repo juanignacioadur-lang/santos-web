@@ -178,11 +178,26 @@ export default function AdminDashboard({
   };
 
   const filteredProducts = useMemo(() => {
-    return products.filter(p => 
+    const filtered = products.filter(p => 
       (p.title || '').toLowerCase().includes(adminSearch.toLowerCase()) ||
       (p.category || '').toLowerCase().includes(adminSearch.toLowerCase())
     );
-  }, [products, adminSearch]);
+
+    // Ordenar por el orden definido en categoryList
+    return [...filtered].sort((a, b) => {
+      const indexA = categoryList.findIndex(c => c.id === a.category);
+      const indexB = categoryList.findIndex(c => c.id === b.category);
+      
+      // Si no se encuentra la categoría, la mandamos al final
+      const posA = indexA === -1 ? 999 : indexA;
+      const posB = indexB === -1 ? 999 : indexB;
+      
+      if (posA !== posB) return posA - posB;
+      
+      // Orden secundario alfabético por título
+      return (a.title || '').localeCompare(b.title || '');
+    });
+  }, [products, adminSearch, categoryList]);
 
   // ==========================================
   // GESTIÓN DE CATEGORÍAS
@@ -1111,78 +1126,188 @@ export default function AdminDashboard({
               </div>
             </div>
 
-            <div className="space-y-2.5">
-              {filteredProducts.map(p => (
-                <div 
-                  key={p.id}
-                  className={`bg-[#fbf9f3] p-4 rounded-2xl border-2 transition-all flex items-center justify-between gap-4 ${
-                    p.isOutOfStock ? 'border-red-300 bg-red-50/50 opacity-80' : 'border-zinc-200 shadow-sm'
-                  }`}
-                >
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <img 
-                      src={p.image} 
-                      alt={p.title} 
-                      className="w-14 h-14 object-cover rounded-xl bg-[#f2eee2] border border-zinc-200 shrink-0" 
-                    />
+            <div className="space-y-8">
+              {categoryList.map(category => {
+                const categoryProducts = filteredProducts.filter(p => p.category === category.id);
+                if (categoryProducts.length === 0) return null;
+                
+                return (
+                  <div key={category.id} className="space-y-3">
+                    <div className="flex items-center gap-3 px-2">
+                      <h4 className="font-heading text-[10px] sm:text-xs uppercase text-[#eb623a] bg-[#083821]/5 px-3 py-1.5 rounded-lg border border-[#083821]/10 shadow-sm">
+                        {category.label}
+                      </h4>
+                      <div className="h-[1px] flex-1 bg-gradient-to-r from-[#083821]/10 to-transparent" />
+                    </div>
+                    
+                    <div className="space-y-2.5">
+                      {categoryProducts.map(p => (
+                        <div 
+                          key={p.id}
+                          className={`bg-[#fbf9f3] p-4 rounded-2xl border-2 transition-all flex items-center justify-between gap-4 ${
+                            p.isOutOfStock ? 'border-red-300 bg-red-50/50 opacity-80' : 'border-zinc-200 shadow-sm'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            <img 
+                              src={p.image} 
+                              alt={p.title} 
+                              className="w-14 h-14 object-cover rounded-xl bg-[#f2eee2] border border-zinc-200 shrink-0" 
+                            />
 
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-heading text-sm uppercase text-[#083821] truncate">
-                          {p.title}
-                        </h4>
-                        {p.isOutOfStock && (
-                          <span className="bg-red-600 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded">
-                            Sin Stock
-                          </span>
-                        )}
-                      </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-heading text-sm uppercase text-[#083821] truncate">
+                                  {p.title}
+                                </h4>
+                                {p.isOutOfStock && (
+                                  <span className="bg-red-600 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded">
+                                    Sin Stock
+                                  </span>
+                                )}
+                              </div>
 
-                      <div className="flex items-center gap-2 text-xs font-bold mt-0.5">
-                        <span className="text-[#083821] font-mono">
-                          ${Number(p.price).toLocaleString('es-AR')} ARS
-                        </span>
-                        <span className="text-zinc-400">•</span>
-                        <span className="text-zinc-500 text-[10px] uppercase font-mono">
-                          {categoryList.find(c => c.id === p.category)?.label || p.category}
-                        </span>
-                      </div>
+                              <div className="flex items-center gap-2 text-xs font-bold mt-0.5">
+                                <span className="text-[#083821] font-mono">
+                                  ${Number(p.price).toLocaleString('es-AR')} ARS
+                                </span>
+                                <span className="text-zinc-400">•</span>
+                                <span className="text-zinc-500 text-[10px] uppercase font-mono">
+                                  {category.label}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleStock(p)}
+                              className={`p-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer ${
+                                p.isOutOfStock 
+                                  ? 'bg-red-100 text-red-700 hover:bg-red-200' 
+                                  : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                              }`}
+                              title={p.isOutOfStock ? "Reactivar plato" : "Pausar stock de este plato"}
+                            >
+                              {p.isOutOfStock ? <PlayCircle className="w-4 h-4" /> : <PauseCircle className="w-4 h-4" />}
+                              <span className="hidden sm:inline">{p.isOutOfStock ? 'Reactivar' : 'Pausar'}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setEditingProduct({ ...p, ingredientsStr: Array.isArray(p.ingredients) ? p.ingredients.join(', ') : '' })}
+                              className="p-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl transition-colors cursor-pointer"
+                            >
+                              <Edit3 className="w-4 h-4 text-[#083821]" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteProduct(p.id, p.title)}
+                              className="p-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
+                );
+              })}
+              
+              {/* Productos sin categoría o con categoría no listada */}
+              {(() => {
+                const categorizedIds = categoryList.map(c => c.id);
+                const uncategorizedProducts = filteredProducts.filter(p => !categorizedIds.includes(p.category));
+                
+                if (uncategorizedProducts.length === 0) return null;
+                
+                return (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 px-2">
+                      <h4 className="font-heading text-[10px] sm:text-xs uppercase text-zinc-400 bg-zinc-100 px-3 py-1.5 rounded-lg border border-zinc-200">
+                        Otros / Sin Categoría
+                      </h4>
+                      <div className="h-[1px] flex-1 bg-gradient-to-r from-zinc-200 to-transparent" />
+                    </div>
+                    <div className="space-y-2.5">
+                      {uncategorizedProducts.map(p => (
+                        <div 
+                          key={p.id}
+                          className={`bg-[#fbf9f3] p-4 rounded-2xl border-2 transition-all flex items-center justify-between gap-4 ${
+                            p.isOutOfStock ? 'border-red-300 bg-red-50/50 opacity-80' : 'border-zinc-200 shadow-sm'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            <img 
+                              src={p.image} 
+                              alt={p.title} 
+                              className="w-14 h-14 object-cover rounded-xl bg-[#f2eee2] border border-zinc-200 shrink-0" 
+                            />
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => handleToggleStock(p)}
-                      className={`p-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer ${
-                        p.isOutOfStock 
-                          ? 'bg-red-100 text-red-700 hover:bg-red-200' 
-                          : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                      }`}
-                      title={p.isOutOfStock ? "Reactivar plato" : "Pausar stock de este plato"}
-                    >
-                      {p.isOutOfStock ? <PlayCircle className="w-4 h-4" /> : <PauseCircle className="w-4 h-4" />}
-                      <span className="hidden sm:inline">{p.isOutOfStock ? 'Reactivar' : 'Pausar'}</span>
-                    </button>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-heading text-sm uppercase text-[#083821] truncate">
+                                  {p.title}
+                                </h4>
+                                {p.isOutOfStock && (
+                                  <span className="bg-red-600 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded">
+                                    Sin Stock
+                                  </span>
+                                )}
+                              </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setEditingProduct({ ...p, ingredientsStr: Array.isArray(p.ingredients) ? p.ingredients.join(', ') : '' })}
-                      className="p-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl transition-colors cursor-pointer"
-                    >
-                      <Edit3 className="w-4 h-4 text-[#083821]" />
-                    </button>
+                              <div className="flex items-center gap-2 text-xs font-bold mt-0.5">
+                                <span className="text-[#083821] font-mono">
+                                  ${Number(p.price).toLocaleString('es-AR')} ARS
+                                </span>
+                                <span className="text-zinc-400">•</span>
+                                <span className="text-zinc-500 text-[10px] uppercase font-mono">
+                                  {p.category || 'Sin Categoría'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteProduct(p.id, p.title)}
-                      className="p-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors cursor-pointer"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleStock(p)}
+                              className={`p-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer ${
+                                p.isOutOfStock 
+                                  ? 'bg-red-100 text-red-700 hover:bg-red-200' 
+                                  : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                              }`}
+                              title={p.isOutOfStock ? "Reactivar plato" : "Pausar stock de este plato"}
+                            >
+                              {p.isOutOfStock ? <PlayCircle className="w-4 h-4" /> : <PauseCircle className="w-4 h-4" />}
+                              <span className="hidden sm:inline">{p.isOutOfStock ? 'Reactivar' : 'Pausar'}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setEditingProduct({ ...p, ingredientsStr: Array.isArray(p.ingredients) ? p.ingredients.join(', ') : '' })}
+                              className="p-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl transition-colors cursor-pointer"
+                            >
+                              <Edit3 className="w-4 h-4 text-[#083821]" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteProduct(p.id, p.title)}
+                              className="p-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })()}
             </div>
           </div>
         </div>

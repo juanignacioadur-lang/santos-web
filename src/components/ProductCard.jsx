@@ -68,7 +68,7 @@ export default function ProductCard({
           <h3 className="font-santos line-clamp-1 text-[15px] sm:text-[16px] uppercase leading-tight tracking-wide text-white">
             {product.title}
           </h3>
-          <p className="mt-1 line-clamp-2 text-[11px] sm:text-[12px] font-medium leading-snug text-white/60">
+          <p className="mt-1 text-[11px] sm:text-[12px] font-medium leading-snug text-white/60">
             {product.tagline || product.description}
           </p>
         </div>

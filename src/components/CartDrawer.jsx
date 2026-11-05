@@ -51,10 +51,10 @@ export default function CartDrawer({
   };
 
   return (
-    <div className="fixed inset-0 z-[130] bg-black/80 backdrop-blur-sm flex justify-end animate-fadeIn select-none" onClick={onClose}>
+    <div className="fixed inset-0 z-[130] bg-black/80 backdrop-blur-sm flex justify-end animate-fadeIn select-none overflow-hidden" onClick={onClose}>
       
       <div 
-        className="w-full max-w-lg bg-[#f2eee2] text-[#083821] h-full flex flex-col justify-between shadow-[-15px_0_40px_rgba(0,0,0,0.6)] border-l-2 border-[#083821] relative overflow-hidden"
+        className="w-full sm:max-w-lg bg-[#f2eee2] text-[#083821] h-full flex flex-col justify-between shadow-[-15px_0_40px_rgba(0,0,0,0.6)] border-l-0 sm:border-l-2 border-[#083821] relative overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         
@@ -66,7 +66,7 @@ export default function CartDrawer({
             </div>
             <div>
               <h3 className="font-heading text-base sm:text-lg uppercase text-[#083821]">
-                Tu Bolsa Santos
+                TU PEDIDO EN SANTOS
               </h3>
               <p className="text-[11px] font-bold text-zinc-500 uppercase font-mono">
                 {cart.length} {cart.length === 1 ? 'ítem cargado' : 'ítems cargados'}
@@ -96,7 +96,7 @@ export default function CartDrawer({
         </div>
 
         {/* 2. CUERPO: LISTADO DE PRODUCTOS */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-left">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4 text-left">
           
           {cart.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center py-12">
@@ -104,16 +104,16 @@ export default function CartDrawer({
                 <ShoppingBag className="w-10 h-10" />
               </div>
               <h4 className="font-heading text-xl uppercase text-[#083821]">
-                Tu bolsa está vacía
+                AÚN NO HAY PEDIDO.
               </h4>
               <p className="text-xs text-zinc-600 max-w-xs mt-1 mb-6 font-medium">
-                ¿Todavía sin tu smash burger? Mirá nuestro menú de dobles caramelizadas y papas crocantes.
+                No te decidiste aún? Mirá nuestra carta y tentate.
               </p>
               <button
                 onClick={onClose}
                 className="btn-santos-primary py-3 px-6 text-xs"
               >
-                Explorar el Menú
+                VER CARTA
               </button>
             </div>
           ) : (
@@ -185,7 +185,7 @@ export default function CartDrawer({
 
                         {/* INGREDIENTES BASE EN EL CARRITO */}
                         {itemIngredients && (
-                          <p className="text-[10px] text-zinc-500 line-clamp-2 mt-0.5 leading-tight font-medium">
+                          <p className="text-[10px] text-zinc-500 mt-0.5 leading-tight font-medium">
                             <strong className="text-[#083821] font-bold">Ingredientes:</strong> {itemIngredients}
                           </p>
                         )}

@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 
 // Componentes
 import HeaderNavbar from './components/HeaderNavbar';
@@ -177,6 +177,46 @@ export default function App() {
     return 'santos2026';
   });
 
+  const cartGrandTotal = Array.isArray(cart) 
+    ? cart.reduce((acc, item) => acc + Number(item?.unitPrice || item?.price || item?.totalPrice || 0) * Number(item?.quantity || 1), 0) 
+    : 0;
+
+  const isAnyModalOpen = isCartOpen || Boolean(customizingProduct) || Boolean(checkoutOrderSummary) || isCookieModalOpen;
+
+  // 6. Reinicio de scroll al cargar
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  // 7. Bloqueo de scroll cuando hay modales abiertos (Sin saltos de posición)
+  const scrollLockY = useRef(0);
+
+  useLayoutEffect(() => {
+    if (isAnyModalOpen) {
+      scrollLockY.current = window.scrollY;
+      // Fijamos el body con el ancho REAL del viewport (sin la barra de scroll):
+      // si se usa width:100% el body se ensancha sobre la barra y todo el contenido se corre.
+      const lockWidth = document.documentElement.clientWidth;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollLockY.current}px`;
+      document.body.style.left = '0';
+      document.body.style.width = `${lockWidth}px`;
+    } else {
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.width = '';
+      // 'instant' evita que el scroll-behavior: smooth del CSS anime el regreso
+      window.scrollTo({ top: scrollLockY.current, behavior: 'instant' });
+    }
+    return () => {
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.width = '';
+    };
+  }, [isAnyModalOpen]);
+
   const handleUpdatePassword = (newPwd) => {
     setAdminPassword(newPwd);
     localStorage.setItem('santos_admin_pwd', newPwd);
@@ -328,12 +368,7 @@ export default function App() {
     ? cart.reduce((acc, item) => acc + Number(item?.quantity || 1), 0) 
     : 0;
 
-  const cartGrandTotal = Array.isArray(cart) 
-    ? cart.reduce((acc, item) => acc + Number(item?.unitPrice || item?.price || item?.totalPrice || 0) * Number(item?.quantity || 1), 0) 
-    : 0;
-
   const cleanWhatsappPhone = (bankingInfo?.whatsappKitchen || '').replace(/[^0-9]/g, '');
-  const isAnyModalOpen = isCartOpen || Boolean(customizingProduct) || Boolean(checkoutOrderSummary) || isCookieModalOpen;
 
   return (
     <div className="min-h-screen bg-[#f2eee2] text-[#083821] antialiased overflow-x-hidden flex flex-col">
@@ -379,23 +414,26 @@ export default function App() {
            {/* 🍕🍔🍟 PATRÓN DOODLE DISPERSO EN EL FONDO (Colocar justo aquí) */}
             <div className="santos-food-pattern pointer-events-none absolute inset-0 z-0 opacity-40" aria-hidden="true" />
 
-            {/* Píldoras de Categorías Dinámicas */}
+            {/* Píldoras de Categorías Dinámicas (Sticky en Móvil) */}
             <div className="mx-auto max-w-6xl px-5 sm:px-8 pt-2 sm:pt-4 pb-14">
-              <CategoryPills
-                selectedCategory={selectedCategory}
-                onSelectCategory={setSelectedCategory}
-                categories={categories}
-              />
+              
+              <div className="sticky top-16 sm:top-20 z-30 -mx-5 px-5 py-2 bg-[#083821]/95 backdrop-blur-sm sm:static sm:bg-transparent sm:backdrop-blur-none sm:mx-0 sm:px-0 sm:py-0">
+                <CategoryPills
+                  selectedCategory={selectedCategory}
+                  onSelectCategory={setSelectedCategory}
+                  categories={categories}
+                />
+              </div>
 
               <section id="menu-section" className="mt-8 space-y-12 scroll-mt-20">
-                {products.length === 0 ? (
+                {filteredProducts.length === 0 ? (
                   <div className="mx-auto max-w-md rounded-3xl bg-white/5 p-10 text-center">
                     <SearchX className="mx-auto mb-3 size-10 text-[#f5b82e]" />
                     <h3 className="font-santos text-lg uppercase text-white">No hay platos disponibles</h3>
                   </div>
                 ) : selectedCategory === 'todos' ? (
                   categories.map((cat, idx) => {
-                    const items = products.filter((p) => p.category === cat.id);
+                    const items = filteredProducts.filter((p) => p.category === cat.id);
                     if (items.length === 0) return null;
 
                     return (
@@ -560,7 +598,9 @@ export default function App() {
           href={`https://api.whatsapp.com/send?phone=${cleanWhatsappPhone}&text=${encodeURIComponent('¡Hola Santos! Tengo una consulta sobre el menú.')}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="group fixed mobile-safe-bottom right-5 z-40 flex items-center justify-center size-13 sm:size-14 rounded-full bg-[#083821] text-[#25D366] border-2 border-[#25D366]/40 hover:border-[#25D366] hover:bg-[#052615] hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer"
+          className={`group fixed right-5 z-40 flex items-center justify-center size-13 sm:size-14 rounded-full bg-[#083821] text-[#25D366] border-2 border-[#25D366]/40 hover:border-[#25D366] hover:bg-[#052615] hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer ${
+            cartTotalItems > 0 ? 'bottom-[88px] sm:bottom-5' : 'mobile-safe-bottom'
+          }`}
           title="Consultar a cocina por WhatsApp"
         >
           <MessageCircle className="size-6 fill-current transition-transform duration-300 group-hover:scale-110" />

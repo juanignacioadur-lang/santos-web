@@ -146,13 +146,13 @@ export default function CheckoutModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 select-none animate-fadeIn" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-0 sm:p-4 select-none animate-fadeIn overflow-hidden" onClick={onClose}>
       
       {/* =========================================================================
           VENTANA DEL CHECKOUT RETRO DINER
           ========================================================================= */}
       <div 
-        className="bg-[#f2eee2] text-[#083821] border-3 border-[#083821] rounded-3xl w-full max-w-lg max-h-[92vh] flex flex-col justify-between shadow-diner overflow-hidden relative"
+        className="bg-[#f2eee2] text-[#083821] border-0 sm:border-3 border-[#083821] rounded-none sm:rounded-3xl w-full h-full sm:h-auto sm:max-w-lg sm:max-h-[92vh] flex flex-col justify-between shadow-diner overflow-hidden relative"
         onClick={(e) => e.stopPropagation()}
       >
         
