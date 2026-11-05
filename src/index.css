@@ -309,6 +309,10 @@
   }
 }
 
+.right-22 {
+  right: 5.5rem;
+}
+
 .mobile-safe-bottom {
   bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
 }
