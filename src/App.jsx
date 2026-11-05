@@ -560,7 +560,7 @@ export default function App() {
           href={`https://api.whatsapp.com/send?phone=${cleanWhatsappPhone}&text=${encodeURIComponent('¡Hola Santos! Tengo una consulta sobre el menú.')}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="group fixed mobile-safe-bottom right-5 z-40 flex items-center justify-center size-13 sm:size-14 rounded-full bg-[#083821] text-[#25D366] border-2 border-[#25D366]/40 shadow-[0_8px_24px_rgba(0,0,0,0.35)] hover:border-[#25D366] hover:bg-[#052615] hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer"
+          className="group fixed mobile-safe-bottom right-5 z-40 flex items-center justify-center size-13 sm:size-14 rounded-full bg-[#083821] text-[#25D366] border-2 border-[#25D366]/40 hover:border-[#25D366] hover:bg-[#052615] hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer"
           title="Consultar a cocina por WhatsApp"
         >
           <MessageCircle className="size-6 fill-current transition-transform duration-300 group-hover:scale-110" />
