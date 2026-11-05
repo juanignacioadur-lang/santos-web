@@ -11,11 +11,11 @@ function Track({ items, hidden }) {
             {text}
           </span>
           <span className="font-santos whitespace-normal text-center text-[10px] sm:text-[11px] leading-[1.05] tracking-widest text-white/90 font-black">
-            SMASHING
+            SANTOS    
             <br />
-            HAPPINESS WITH
+            LOMITERIA
             <br />
-            EVERY BURGER
+            PIZZERIA
           </span>
         </React.Fragment>
       ))}
@@ -25,8 +25,8 @@ function Track({ items, hidden }) {
 
 export default function MarqueeTicker({ customItems }) {
   const items = customItems || BUSINESS_CONFIG.marqueeItems || [
-    'SANTOS CHEESE SIGNATURE',
-    'DOBLE CARNE 100% VACUNO',
+    'COMIDA 100% CASERA',
+    'CALIDAD 100% SANTOS',
     'PAN DE PAPA BRIOCHE',
     'PICKLES HECHOS EN CASA',
     'PAPAS FRITAS BIEN CALIENTES',
