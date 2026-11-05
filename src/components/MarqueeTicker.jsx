@@ -27,11 +27,9 @@ export default function MarqueeTicker({ customItems }) {
   const items = customItems || BUSINESS_CONFIG.marqueeItems || [
     'COMIDA 100% CASERA',
     'CALIDAD 100% SANTOS',
-    'PAN DE PAPA BRIOCHE',
-    'PICKLES HECHOS EN CASA',
-    'PAPAS FRITAS BIEN CALIENTES',
-    'SANTOS ONION HOUSE',
-    'REAL CHEESE ONLY'
+    'PAN DE LOMO ARTESANAL',
+    'PIZZAS 100% DE BARRIO',
+    'PAPAS FRITAS 100% SANTOS'
   ];
 
   return (

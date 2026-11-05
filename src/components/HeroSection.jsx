@@ -92,24 +92,24 @@ const AnimatedTitle = memo(function AnimatedTitle({ videoRef, resetTrigger }) {
   return (
     <h1 className="font-santos text-[54px] sm:text-[76px] md:text-[74px] lg:text-[90px] uppercase leading-[0.92] select-none text-left tracking-tight">
       <span className="relative block">
-        <span className="text-[#083821]/20">Dos tapas.</span>
+        <span className="text-[#083821]/20">UN SABOR ÚNICO,</span>
         <span 
           className="absolute inset-0 text-[#083821] overflow-hidden will-change-[clip-path]"
           style={{ clipPath: `inset(0 ${Math.max(0, 100 - progressDosTapas)}% 0 0)` }}
           aria-hidden="true"
         >
-          Dos tapas.
+          UN SABOR ÚNICO,
         </span>
       </span>
 
       <span className="relative block mt-0.5 sm:mt-1">
-        <span className="text-[#083821]/20">Un relleno.</span>
+        <span className="text-[#083821]/20">SANTOS.</span>
         <span 
           className="absolute inset-0 text-[#083821] overflow-hidden will-change-[clip-path]"
           style={{ clipPath: `inset(0 ${Math.max(0, 100 - progressUnRelleno)}% 0 0)` }}
           aria-hidden="true"
         >
-          Un relleno.
+          SANTOS.
         </span>
       </span>
     </h1>
@@ -326,7 +326,7 @@ export default function HeroSection() {
               
               <p className="mb-4 inline-flex max-w-full items-center gap-2 rounded-xl bg-[#f5b82e] px-3.5 py-1.5 text-[12px] sm:text-[13px] leading-snug text-[#083821] font-bold shadow-sm">
                 <span className="size-2 shrink-0 rounded-full bg-[#083821]" />
-                <span>Smash de verdad · carne aplastada al momento</span>
+                <span>Productos 100% frescos | Hechos en nuestra casa</span>
               </p>
 
               <AnimatedTitle videoRef={videoRef} resetTrigger={resetCount} />
@@ -351,11 +351,11 @@ export default function HeroSection() {
               </div>
 
               <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] font-semibold uppercase tracking-wider text-ink/50">
-                <span>✓ 100% vacuno</span>
+                <span>✓ 100% ABUNDANTE</span>
                 <span>•</span>
-                <span>✓ Pan de papa</span>
+                <span>✓ PAN ARTESANAL</span>
                 <span>•</span>
-                <span>✓ Papas triple cocción</span>
+                <span>✓ Papas adictivas</span>
               </div>
             </div>
 
