@@ -29,23 +29,22 @@ export default function HeaderNavbar({
     if (isAdminView) {
       onToggleAdmin(); // Si está en el admin, regresa a la tienda y scrollea
     }
-    
-    // Pequeño delay para asegurar que el DOM esté listo si cambiamos de vista
+
+    // Delay de 150ms para que en iPhone termine de cerrarse el menú móvil antes de calcular la altura
     setTimeout(() => {
       const element = document.getElementById(id);
       if (element) {
         const offset = 80; // Altura aproximada del header
-        const bodyRect = document.body.getBoundingClientRect().top;
+        const currentScroll = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
         const elementRect = element.getBoundingClientRect().top;
-        const elementPosition = elementRect - bodyRect;
-        const offsetPosition = elementPosition - offset;
+        const offsetPosition = Math.max(0, elementRect + currentScroll - offset);
 
         window.scrollTo({
           top: offsetPosition,
           behavior: 'smooth'
         });
       }
-    }, isAdminView ? 300 : 50);
+    }, isAdminView ? 300 : 150);
   };
 
   return (

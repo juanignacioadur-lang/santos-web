@@ -42,7 +42,6 @@
     min-height: 100vh;
     min-height: 100dvh;
     overflow-x: clip;
-    overflow-y: auto !important;
     scrollbar-gutter: stable !important;
   }
 
@@ -55,6 +54,7 @@
     display: flex;
     flex-direction: column;
     -webkit-tap-highlight-color: transparent;
+    -webkit-overflow-scrolling: touch;
     margin: 0;
     padding: 0;
     overflow-x: clip;
