@@ -11,6 +11,7 @@ import CustomizerModal from './components/CustomizerModal';
 import CartDrawer from './components/CartDrawer';
 import CheckoutModal from './components/CheckoutModal';
 import FloatingCartBar from './components/FloatingCartBar';
+import Toast from './components/Toast';
 import Footer from './components/Footer';
 import AdminDashboard from './components/admin/AdminDashboard';
 import CookieBanner from './components/CookieBanner';
@@ -105,6 +106,10 @@ export default function App() {
     return [];
   });
   const [isCartOpen, setIsCartOpen] = useState(false);
+
+  // Aviso flotante al agregar un producto (evita abrir el carrito automáticamente)
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
 
   const [customizingProduct, setCustomizingProduct] = useState(null);
   const [checkoutOrderSummary, setCheckoutOrderSummary] = useState(null);
@@ -294,9 +299,19 @@ export default function App() {
     loadCloudData();
   }, []);
 
+  const showToast = (message) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ id: Date.now(), message });
+    toastTimer.current = setTimeout(() => setToast(null), 2800);
+  };
+
+  useEffect(() => () => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+  }, []);
+
   const handleAddCustomizedToCart = (customizedItem) => {
     setCart((prev) => [customizedItem, ...prev]);
-    setIsCartOpen(true);
+    showToast(`${customizedItem.title} se sumó a tu pedido`);
   };
 
   const handleQuickAddToCart = (product) => {
@@ -322,6 +337,7 @@ export default function App() {
       };
       return [newItem, ...prev];
     });
+    showToast(`${product.title} se sumó a tu pedido`);
   };
 
   const handleUpdateQuantity = (cartItemId, newQty) => {
@@ -371,7 +387,7 @@ export default function App() {
   const cleanWhatsappPhone = (bankingInfo?.whatsappKitchen || '').replace(/[^0-9]/g, '');
 
   return (
-    <div className="min-h-screen bg-[#f2eee2] text-[#083821] antialiased overflow-x-hidden flex flex-col">
+    <div className="min-h-[100dvh] bg-[#f2eee2] text-[#083821] antialiased flex flex-col">
       <HeaderNavbar
         cartCount={cartTotalItems}
         cartTotal={cartGrandTotal}
@@ -414,10 +430,10 @@ export default function App() {
            {/* 🍕🍔🍟 PATRÓN DOODLE DISPERSO EN EL FONDO (Colocar justo aquí) */}
             <div className="santos-food-pattern pointer-events-none absolute inset-0 z-0 opacity-40" aria-hidden="true" />
 
-            {/* Píldoras de Categorías Dinámicas (Sticky en Móvil) */}
             <div className="mx-auto max-w-6xl px-5 sm:px-8 pt-2 sm:pt-4 pb-14">
               
-              <div className="sticky top-16 sm:top-20 z-30 -mx-5 px-5 py-2 bg-[#083821]/95 backdrop-blur-sm sm:static sm:bg-transparent sm:backdrop-blur-none sm:mx-0 sm:px-0 sm:py-0">
+              {/* Píldoras de Categorías Dinámicas (Sticky en Móvil) */}
+              <div className="sticky top-0 z-[35] -mx-5 px-5 py-2.5 bg-[#083821]/95 backdrop-blur-md sm:static sm:bg-transparent sm:backdrop-blur-none sm:mx-0 sm:px-0 sm:py-0 border-b border-white/10 sm:border-none transition-all">
                 <CategoryPills
                   selectedCategory={selectedCategory}
                   onSelectCategory={setSelectedCategory}
@@ -607,6 +623,16 @@ export default function App() {
           </span>
         </a>
       )}
+
+      {/* Aviso de "producto agregado" */}
+      <Toast
+        toast={toast}
+        onClose={() => setToast(null)}
+        onOpenCart={() => {
+          setToast(null);
+          setIsCartOpen(true);
+        }}
+      />
 
       {/* Modales */}
       <CustomizerModal

@@ -51,7 +51,7 @@ export default function HeaderNavbar({
   return (
     <>
       {/* Barra de Navegación Principal */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm select-none border-b border-transparent">
+      <header className="relative z-40 bg-white/95 backdrop-blur-sm select-none border-b border-transparent">
         <div className="mx-auto flex h-16 sm:h-20 max-w-6xl items-center justify-between px-5 sm:px-8">
           
           {/* Logo Santos */}

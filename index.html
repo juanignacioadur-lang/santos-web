@@ -57,12 +57,13 @@
     <!-- EVITAR FLASH INICIAL: Sincronizar fondo antes de que cargue React -->
     <style>
       :root { --bg-initial: #f2eee2; }
+      html { background-color: var(--bg-initial); }
       body { background-color: var(--bg-initial) !important; }
-      #root { background-color: var(--bg-initial); min-height: 100vh; }
+      #root { background-color: var(--bg-initial); min-height: 100vh; min-height: 100dvh; }
     </style>
   </head>
 
-  <body class="bg-[#f2eee2] text-[#083821] antialiased overflow-x-hidden min-h-screen">
+  <body class="bg-[#f2eee2] text-[#083821] antialiased min-h-screen">
     <!-- Contenedor Maestro de React -->
     <div id="root"></div>
 
