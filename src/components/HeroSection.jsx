@@ -92,7 +92,7 @@ const AnimatedTitle = memo(function AnimatedTitle({ videoRef, resetTrigger }) {
   return (
     <h1 className="font-santos text-[54px] sm:text-[76px] md:text-[74px] lg:text-[90px] uppercase leading-[0.92] select-none text-left tracking-tight">
       <span className="relative block">
-        <span className="text-[#083821]/20">UN SABOR UNICO</span>
+        <span className="text-[#083821]/20">UN SABOR ÚNICO,</span>
         <span 
           className="absolute inset-0 text-[#083821] overflow-hidden will-change-[clip-path]"
           style={{ clipPath: `inset(0 ${Math.max(0, 100 - progressDosTapas)}% 0 0)` }}
@@ -174,9 +174,9 @@ export default function HeroSection() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
-  // Solo activa el Canvas en dispositivos iOS reales (iPhone / iPad) para apagar el HDR de Apple.
-  // En PC (incluso en ventana chica) y Android usa el <video> directo como en tu Imagen 2.
-  const [useCanvasMode] = useState(() => {
+  // Detecta EXCLUSIVAMENTE iPhone / iPad (iOS) para usar tu .webm + Canvas Chroma Key anti-brillo.
+  // En PC (grande o ventana chica) y Android da false y usa el .mp4 con multiply sin flashes.
+  const [isIOS] = useState(() => {
     if (typeof window === 'undefined') return false;
     const ua = navigator.userAgent || '';
     return /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -192,20 +192,37 @@ export default function HeroSection() {
 
     let animId;
     const canvas = canvasRef.current;
-    // Sin desynchronized: true (que causaba los flashes blancos)
-    const ctx = useCanvasMode && canvas ? canvas.getContext('2d', { alpha: false }) : null;
+    // Configuración EXACTA que ya funcionaba perfecta en tu iPhone
+    const ctx = isIOS && canvas ? canvas.getContext('2d', { alpha: true, desynchronized: true }) : null;
 
     const renderFrame = () => {
-      if (!useCanvasMode) return;
+      if (!isIOS) return;
 
       if (ctx && canvas && video.readyState >= 2 && video.videoWidth > 0) {
         if (canvas.width !== video.videoWidth) {
           canvas.width = video.videoWidth;
           canvas.height = video.videoHeight;
         }
-        // Dibujo directo a 60fps sin bucle for de píxeles: el mixBlendMode: multiply
-        // funde el blanco con el crema #f2eee2 igual que en tu Imagen 2, sin halos ni flashes
+        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // BORRADOR DE FONDO REAL (Chroma Key Blanco para iPhone) — deja 0 píxeles blancos brillantes
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i], g = data[i + 1], b = data[i + 2];
+          
+          if (r > 245 && g > 245 && b > 245) {
+            data[i + 3] = 0;
+          } else if (r > 210 && g > 210 && b > 210) {
+            const avg = (r + g + b) / 3;
+            const alpha = (255 - avg) * 2.5; 
+            data[i + 3] = Math.min(data[i + 3], alpha);
+          }
+        }
+        ctx.putImageData(imageData, 0, 0);
       }
       
       if (!video.paused && !video.ended) {
@@ -215,7 +232,7 @@ export default function HeroSection() {
     };
 
     const triggerRender = () => {
-      if (useCanvasMode) {
+      if (isIOS) {
         cancelAnimationFrame(animId);
         animId = requestAnimationFrame(renderFrame);
       }
@@ -246,7 +263,7 @@ export default function HeroSection() {
       window.removeEventListener('touchstart', unlockTouch);
       window.removeEventListener('click', unlockTouch);
     };
-  }, [useCanvasMode, resetCount]);
+  }, [isIOS, resetCount]);
 
   const scrollToMenu = () => {
     const el = document.getElementById('menu-section');
@@ -271,16 +288,27 @@ export default function HeroSection() {
 
   const maskGradient = 'linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 99%), linear-gradient(to right, transparent 0%, black 8%, black 88%, rgba(0,0,0,0.5) 95%, transparent 100%)';
 
-  // Mismo estilo exacto de la Imagen 2 tanto para el <video> como para el <canvas>
-  const unifiedBlendStyles = {
+  const baseMask = {
     WebkitTouchCallout: 'none',
     userSelect: 'none',
-    mixBlendMode: 'multiply',
-    filter: 'brightness(1.12) contrast(1.05) saturate(1.05)',
     maskImage: maskGradient,
     WebkitMaskImage: maskGradient,
     maskComposite: 'intersect',
     WebkitMaskComposite: 'source-in'
+  };
+
+  // PC y Android: usa el .mp4 con multiply (igual que en tu Imagen 1 y 2)
+  const nonIOSVideoStyles = {
+    ...baseMask,
+    mixBlendMode: 'multiply',
+    filter: 'brightness(1.12) contrast(1.05) saturate(1.05)'
+  };
+
+  // iPhone: Canvas transparente con borrador de píxeles (0 brillo blanco extra)
+  const iosCanvasStyles = {
+    ...baseMask,
+    filter: 'none',
+    willChange: 'transform'
   };
 
   return (
@@ -336,7 +364,7 @@ export default function HeroSection() {
               <div className="relative z-20 w-full max-w-[280px] sm:max-w-[380px] lg:max-w-[420px]">
                 <div className="relative aspect-4/5 w-full overflow-hidden bg-[#f2eee2] sm:bg-white">
                   
-                  {/* Neblina superior e inferior (crema en móvil, blanca en PC) */}
+                  {/* Neblina superior e inferior */}
                   <div className="absolute top-0 inset-x-0 h-12 bg-gradient-to-b from-[#f2eee2] via-[#f2eee2]/70 sm:from-white sm:via-white/70 to-transparent pointer-events-none z-20" />
                   <div className="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-[#f2eee2] via-[#f2eee2]/65 sm:from-white sm:via-white/65 to-transparent pointer-events-none z-20" />
 
@@ -344,30 +372,38 @@ export default function HeroSection() {
                   <div className="absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-[#f2eee2] via-[#f2eee2]/50 sm:from-white sm:via-white/50 to-transparent pointer-events-none z-20" />
                   <div className="absolute inset-y-0 right-0 w-8 sm:w-10 bg-gradient-to-l from-[#f2eee2] via-[#f2eee2]/75 sm:from-white sm:via-white/75 to-transparent pointer-events-none z-20" />
 
+                  {/* En iPhone (isIOS) usa .webm + Canvas transparente. En PC y Android usa .mp4 directo */}
                   <video
                     ref={videoRef}
                     onContextMenu={(e) => e.preventDefault()}
                     className={
-                      useCanvasMode
+                      isIOS
                         ? "hero-video-sdr pointer-events-none absolute bottom-0 left-0 h-px w-px opacity-[0.01]"
                         : "hero-video-sdr h-full w-full object-cover pointer-events-none select-none bg-white"
                     }
-                    style={useCanvasMode ? undefined : unifiedBlendStyles}
+                    style={isIOS ? undefined : nonIOSVideoStyles}
                     autoPlay
                     muted
                     disablePictureInPicture
                     playsInline
                     preload="auto"
                   >
-                    <source src="/video/hero-burger.mp4" type="video/mp4" />
+                    {isIOS ? (
+                      <>
+                        <source src="/video/hero-burger.webm" type="video/webm" />
+                        <source src="/video/hero-burger.mp4" type="video/mp4" />
+                      </>
+                    ) : (
+                      <source src="/video/hero-burger.mp4" type="video/mp4" />
+                    )}
                   </video>
 
-                  {useCanvasMode && (
+                  {isIOS && (
                     <canvas
                       ref={canvasRef}
                       onContextMenu={(e) => e.preventDefault()}
-                      className="hero-video-sdr h-full w-full object-cover pointer-events-none select-none bg-white"
-                      style={unifiedBlendStyles}
+                      className="hero-video-sdr h-full w-full object-cover pointer-events-none select-none bg-[#f2eee2]"
+                      style={iosCanvasStyles}
                     />
                   )}
                 </div>
