@@ -562,3 +562,118 @@
     overflow-anchor: none;
   }
 }
+/* ==========================================================================
+   BLINDAJE RESPONSIVE DEL PANEL DE ADMINISTRACIÓN EN IPHONE / MÓVILES
+   ========================================================================== */
+@media (max-width: 639px) {
+
+  /* 1. Ganar espacio horizontal reduciendo el padding excesivo (p-8 -> 16px) de las tarjetas del Admin */
+  main .bg-\[\#fbf9f3\].p-8,
+  main .bg-\[\#fbf9f3\].p-6 {
+    padding: 1.15rem 0.9rem !important;
+    border-radius: 1.35rem !important;
+  }
+
+  /* 2. Cada tarjeta de día (Lunes, Martes, etc.) apilada prolija al 100% de ancho */
+  main .space-y-3 > .flex.flex-wrap.items-center.justify-between.gap-4.p-4.rounded-2xl {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+    padding: 0.9rem !important;
+    overflow: hidden;
+  }
+
+  /* Contenedor de Turno 1 y Turno 2 al 100% del ancho disponible */
+  main .space-y-3 .flex.flex-col.gap-2 {
+    width: 100% !important;
+    gap: 0.65rem !important;
+  }
+
+  /* 3. Filas de Turno 1 y Turno 2 en grilla flexible para que NADA se salga por la derecha */
+  main .space-y-3 .flex.items-center.gap-3 {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.5rem !important;
+    width: 100% !important;
+  }
+
+  /* El título "TURNO 1" / "TURNO 2" ocupa la línea superior completa del turno */
+  main .space-y-3 .flex.items-center.gap-3 > span.w-10 {
+    grid-column: 1 / -1 !important;
+    width: auto !important;
+    font-size: 10px !important;
+    color: #083821 !important;
+    opacity: 0.75;
+    margin-bottom: -2px;
+  }
+
+  /* Cada bloque "ABRE [Hora]" y "CIERRA [Hora]" ocupa exactamente el 50% de la fila */
+  main .space-y-3 .flex.items-center.gap-3 > .flex.items-center.gap-2 {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.2rem !important;
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Inputs de hora (type="time") cómodos, legibles y ajustados al 100% de su columna */
+  main input[type="time"] {
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 0.45rem 0.5rem !important;
+    font-size: 14px !important;
+    text-align: center;
+    box-sizing: border-box;
+  }
+
+  /* 4. El botón "LIMPIAR" ya no se escapa a la derecha: queda adentro abajo a la derecha como botón */
+  main .space-y-3 .flex.items-center.gap-3 > button.text-red-500 {
+    grid-column: 1 / -1 !important;
+    justify-self: end !important;
+    background-color: #fef2f2 !important;
+    border: 1px solid #fecaca !important;
+    padding: 0.3rem 0.65rem !important;
+    border-radius: 0.5rem !important;
+    font-size: 10px !important;
+    text-decoration: none !important;
+    margin-top: 0.15rem;
+  }
+
+  /* 5. Listado de Secciones y Extras: que los inputs y botones de flechas/papelera no se aplasten */
+  main .flex.items-center.justify-between.gap-3.p-3.bg-\[\#f2eee2\] {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+
+  main .flex.items-center.justify-between.gap-3.p-3.bg-\[\#f2eee2\] > .flex.items-center.gap-2\.5 {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+
+  main .flex.items-center.justify-between.gap-3.p-3.bg-\[\#f2eee2\] > .flex.items-center.gap-1\.5.shrink-0 {
+    width: 100% !important;
+    justify-content: flex-end !important;
+    padding-top: 0.35rem;
+    border-top: 1px solid rgba(8, 56, 33, 0.08);
+  }
+
+  /* 6. Tarjetas de platos del Menú Activo en el Admin: acomodar botones abajo en pantallas angostas */
+  main .bg-\[\#fbf9f3\].p-4.rounded-2xl.border-2.flex.items-center.justify-between.gap-4 {
+    flex-wrap: wrap !important;
+    gap: 0.65rem !important;
+  }
+
+  main .bg-\[\#fbf9f3\].p-4.rounded-2xl.border-2.flex.items-center.justify-between.gap-4 > .flex.items-center.gap-2.shrink-0 {
+    width: 100% !important;
+    justify-content: flex-end !important;
+    padding-top: 0.45rem;
+    border-top: 1px solid rgba(8, 56, 33, 0.08);
+  }
+
+  /* 7. Botón "Guardar Horarios y Local" al 100% de ancho en móvil */
+  main form button[type="submit"] {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
