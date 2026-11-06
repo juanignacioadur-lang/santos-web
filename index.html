@@ -61,6 +61,16 @@
       body { background-color: var(--bg-initial) !important; }
       #root { background-color: var(--bg-initial); min-height: 100vh; min-height: 100dvh; }
     </style>
+    <!-- FORZAR QUE AL RECARGAR EN IPHONE SIEMPRE EMPIECE BIEN DESDE ARRIBA -->
+    <script>
+      if ('scrollRestoration' in history) {
+        history.scrollRestoration = 'manual';
+      }
+      window.scrollTo(0, 0);
+      window.addEventListener('pageshow', function () {
+        window.scrollTo(0, 0);
+      });
+    </script>
   </head>
 
   <body class="bg-[#f2eee2] text-[#083821] antialiased min-h-screen">

@@ -494,3 +494,48 @@
   background-repeat: repeat;
   background-size: 180px 180px;
 }
+
+/* ==========================================================================
+   FIX IPHONE SAFARI: INICIO SIEMPRE ARRIBA + FINAL SIN RECORTE BLANCO ABAJO
+   ========================================================================== */
+
+/* 1. Mantener el Header siempre visible arriba para que no quede cortado bajo la hora del iPhone */
+header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 40 !important;
+}
+
+/* 2. Eliminar el recorte blanco/crema debajo del footer donde está la burbuja del link en Safari */
+#contacto {
+  background-color: #042314 !important;
+  margin-bottom: 0 !important;
+}
+
+/* Extiende el verde oscuro del footer por detrás de la barra flotante inferior de Safari iOS */
+#contacto::after {
+  content: "";
+  display: block;
+  width: 100%;
+  height: env(safe-area-inset-bottom, 0px);
+  background-color: #042314;
+}
+
+@media (max-width: 768px) {
+  /* Evita que el rebote inferior (overscroll) de iPhone muestre una franja clara al final de la web */
+  html {
+    background: linear-gradient(
+      to bottom,
+      #f2eee2 0%,
+      #f2eee2 50%,
+      #042314 50%,
+      #042314 100%
+    ) !important;
+  }
+
+  body,
+  #root {
+    background-color: transparent !important;
+    overflow-anchor: none; /* Evita que Safari salte hacia abajo mientras carga el video o las fotos */
+  }
+}
