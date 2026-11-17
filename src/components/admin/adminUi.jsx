@@ -109,7 +109,23 @@ export const PAYMENT_METHOD_LABEL = {
   transferencia: 'Transferencia',
   mercadopago: 'Mercado Pago',
   efectivo: 'Efectivo',
+  tarjeta: 'Tarjeta (posnet)',
   sin_definir: 'Sin definir'
+};
+
+// De dónde vino el pedido
+export const ORDER_SOURCE = {
+  web: { label: 'Web', className: 'bg-[#083821]/10 text-[#083821]' },
+  local: { label: 'En el local', className: 'bg-[#f5b82e]/30 text-[#5c4300]' },
+  telefono: { label: 'Teléfono', className: 'bg-violet-100 text-violet-800' },
+  whatsapp: { label: 'WhatsApp', className: 'bg-[#25D366]/15 text-[#0f6b39]' },
+  otro: { label: 'Otro', className: 'bg-zinc-100 text-zinc-700' }
+};
+
+export const ORDER_TYPE_LABEL = {
+  delivery: 'Envío a domicilio',
+  takeaway: 'Retira en el local',
+  mesa: 'Consume en el local'
 };
 
 export function Badge({ className = '', children }) {

@@ -3,10 +3,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Store, Power, TriangleAlert, KeyRound, Wallet, PauseCircle, Landmark,
-  TrendingUp, Receipt, ClipboardList, RefreshCw, LoaderCircle, Bike, ArrowRight
+  TrendingUp, Receipt, ClipboardList, RefreshCw, LoaderCircle, Bike, ArrowRight, Banknote, UtensilsCrossed
 } from 'lucide-react';
 import { adminGetStats, isSupabaseConfigured } from '../../lib/supabase';
-import { Panel, PanelTitle, Notice, money, formatDate, PAYMENT_METHOD_LABEL, secondaryButtonClass } from './adminUi';
+import {
+  Panel, PanelTitle, Notice, money, formatDate, PAYMENT_METHOD_LABEL, ORDER_SOURCE, secondaryButtonClass
+} from './adminUi';
 
 const BAR = '#2f7a52';
 const BAR_TODAY = '#083821';
@@ -166,7 +168,15 @@ export default function AdminOverview({
 
   const topMax = Math.max(1, ...(stats?.top_products || []).map((p) => Number(p.qty) || 0));
   const paymentRows = Object.entries(stats?.by_payment || {}).sort((a, b) => b[1].revenue - a[1].revenue);
+  const sourceRows = Object.entries(stats?.by_source || {}).sort((a, b) => b[1].revenue - a[1].revenue);
   const periodRevenue = Number(stats?.period?.revenue) || 0;
+  const todayRows = Object.entries(stats?.today_by_payment || {})
+    .map(([method, row]) => [method, { orders: Number(row.orders) || 0, revenue: Number(row.revenue) || 0, paid: Number(row.paid) || 0 }])
+    .sort((a, b) => b[1].revenue - a[1].revenue);
+  const todayTotals = todayRows.reduce(
+    (acc, [, row]) => ({ orders: acc.orders + row.orders, revenue: acc.revenue + row.revenue, paid: acc.paid + row.paid }),
+    { orders: 0, revenue: 0, paid: 0 }
+  );
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -251,6 +261,60 @@ export default function AdminOverview({
             <StatTile label="Ticket promedio" value={stats ? money(stats.period?.avg_ticket) : '—'} detail={`Últimos ${days} días`} icon={Wallet} />
           </div>
 
+          {/* CAJA DE HOY */}
+          <Panel>
+            <PanelTitle
+              icon={Banknote}
+              title="Caja de hoy"
+              subtitle="Lo vendido hoy por cada medio de pago (web y pedidos cargados a mano)"
+              action={onGoTo && (
+                <button type="button" onClick={() => onGoTo('nuevo-pedido')} className={secondaryButtonClass}>
+                  <Receipt className="w-4 h-4 text-[#eb623a]" />
+                  Cargar pedido
+                </button>
+              )}
+            />
+            {todayRows.length === 0 ? (
+              <p className="text-xs text-zinc-500 font-medium">Todavía no hay ventas hoy.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-[10px] font-black uppercase tracking-wider text-zinc-500 border-b border-zinc-200">
+                      <th className="py-2 pr-2">Medio</th>
+                      <th className="py-2 px-2 text-right">Pedidos</th>
+                      <th className="py-2 px-2 text-right">Vendido</th>
+                      <th className="py-2 px-2 text-right">Cobrado</th>
+                      <th className="py-2 pl-2 text-right">A cobrar</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {todayRows.map(([method, row]) => (
+                      <tr key={method} className="border-b border-zinc-100">
+                        <td className="py-2 pr-2 font-bold text-[#083821]">{PAYMENT_METHOD_LABEL[method] || method}</td>
+                        <td className="py-2 px-2 text-right font-mono">{row.orders}</td>
+                        <td className="py-2 px-2 text-right font-mono">{money(row.revenue)}</td>
+                        <td className="py-2 px-2 text-right font-mono text-emerald-700">{money(row.paid)}</td>
+                        <td className={`py-2 pl-2 text-right font-mono ${row.revenue - row.paid > 0 ? 'text-amber-700 font-bold' : 'text-zinc-400'}`}>
+                          {money(row.revenue - row.paid)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="font-black text-[#083821]">
+                      <td className="pt-2 pr-2">Total</td>
+                      <td className="pt-2 px-2 text-right font-mono">{todayTotals.orders}</td>
+                      <td className="pt-2 px-2 text-right font-mono">{money(todayTotals.revenue)}</td>
+                      <td className="pt-2 px-2 text-right font-mono">{money(todayTotals.paid)}</td>
+                      <td className="pt-2 pl-2 text-right font-mono">{money(todayTotals.revenue - todayTotals.paid)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </Panel>
+
           {/* VENTAS POR DÍA */}
           <Panel>
             <PanelTitle
@@ -329,9 +393,30 @@ export default function AdminOverview({
                 <p className="text-xs text-zinc-500 font-medium">Todavía no hay ventas en este período.</p>
               )}
 
+              {sourceRows.length > 0 && (
+                <div className="mt-5 pt-4 border-t border-zinc-200">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-2">De dónde vienen los pedidos</p>
+                  <ul className="space-y-2">
+                    {sourceRows.map(([source, row]) => (
+                      <li key={source} className="text-xs">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="font-bold text-[#083821]">{ORDER_SOURCE[source]?.label || source}</span>
+                          <span className="font-mono font-bold text-[#083821]">
+                            {money(row.revenue)} <span className="text-zinc-500">· {row.orders} ped.</span>
+                          </span>
+                        </div>
+                        <div className="mt-1 h-1.5 rounded-full bg-zinc-200 overflow-hidden" aria-hidden="true">
+                          <div className="h-full rounded-full" style={{ width: `${periodRevenue ? (row.revenue / periodRevenue) * 100 : 0}%`, backgroundColor: BAR }} />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {stats?.by_type && Object.keys(stats.by_type).length > 0 && (
-                <div className="mt-5 pt-4 border-t border-zinc-200 grid grid-cols-2 gap-2.5">
-                  {[['delivery', 'Delivery', Bike], ['takeaway', 'Retiro', Store]].map(([key, label, Icon]) => (
+                <div className="mt-5 pt-4 border-t border-zinc-200 grid grid-cols-3 gap-2">
+                  {[['delivery', 'Envío', Bike], ['takeaway', 'Retiro', Store], ['mesa', 'En el local', UtensilsCrossed]].map(([key, label, Icon]) => (
                     <div key={key} className="rounded-xl bg-[#f2eee2] border border-zinc-200 p-3">
                       <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500 flex items-center gap-1.5">
                         <Icon className="w-3.5 h-3.5" /> {label}

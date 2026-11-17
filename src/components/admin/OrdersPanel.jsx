@@ -3,15 +3,102 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ClipboardList, Search, RefreshCw, LoaderCircle, Bike, Store, Phone, MessageCircle,
-  ChefHat, CircleCheck, Ban, Trash2, Wallet, StickyNote, Bell, BellRing, TriangleAlert, Inbox, MapPin
+  ChefHat, CircleCheck, Ban, Trash2, Wallet, StickyNote, Bell, BellRing, TriangleAlert, Inbox, MapPin,
+  UtensilsCrossed, FileSpreadsheet, PlusCircle
 } from 'lucide-react';
-import { adminListOrders, adminUpdateOrder, adminDeleteOrder, mpAdminVerify, isSupabaseConfigured } from '../../lib/supabase';
+import {
+  adminListOrders, adminUpdateOrder, adminDeleteOrder, adminExportOrders, mpAdminVerify, isSupabaseConfigured
+} from '../../lib/supabase';
 import { getStoreNow } from '../../data/business';
 import { whatsappUrl } from '../../lib/orderMessage';
+import { MONTH_NAMES, monthRange, yearRange } from '../../lib/excelExport';
 import {
-  Panel, PanelTitle, Notice, Badge, ORDER_STATUS, PAYMENT_STATUS, PAYMENT_METHOD_LABEL,
-  money, formatTime, formatDateTime, timeAgo, inputClass, secondaryButtonClass
+  Panel, PanelTitle, Notice, Badge, ORDER_STATUS, PAYMENT_STATUS, PAYMENT_METHOD_LABEL, ORDER_SOURCE,
+  ORDER_TYPE_LABEL, money, formatTime, formatDateTime, timeAgo, inputClass, secondaryButtonClass
 } from './adminUi';
+
+const SOURCE_FILTERS = [
+  { id: 'todos', label: 'Todos los orígenes' },
+  { id: 'web', label: 'Web' },
+  { id: 'local', label: 'En el local' },
+  { id: 'telefono', label: 'Teléfono' },
+  { id: 'whatsapp', label: 'WhatsApp' },
+  { id: 'otro', label: 'Otro' }
+];
+
+// Mes actual según la hora del local: "2026-11"
+function currentMonthValue() {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Cordoba', year: 'numeric', month: '2-digit' }).format(new Date());
+  return parts.slice(0, 7);
+}
+
+// Bloque para descargar el Excel del mes (o del año)
+function ExportExcel({ storeName, notify }) {
+  const [monthValue, setMonthValue] = useState(currentMonthValue);
+  const [wholeYear, setWholeYear] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const [yearText, monthText] = (monthValue || currentMonthValue()).split('-');
+  const year = Number(yearText);
+  const monthIndex = Number(monthText) - 1;
+  const label = wholeYear ? `todo ${year}` : `${MONTH_NAMES[monthIndex] || ''} ${year}`;
+
+  const handleDownload = async () => {
+    if (busy || !year || monthIndex < 0) return;
+    setBusy(true);
+    try {
+      const range = wholeYear ? yearRange(year) : monthRange(year, monthIndex);
+      const { data, error } = await adminExportOrders(range.from, range.to);
+      if (error) {
+        notify?.(`No se pudo descargar: ${error.message}`, false);
+        return;
+      }
+      const { downloadOrdersExcel } = await import('../../lib/excelExport');
+      await downloadOrdersExcel({
+        orders: Array.isArray(data) ? data : [],
+        period: wholeYear ? { type: 'year', year } : { type: 'month', year, month: monthIndex },
+        businessName: storeName || 'Santos'
+      });
+      notify?.(`Excel de ${label} descargado (${Array.isArray(data) ? data.length : 0} pedidos)`);
+    } catch (err) {
+      console.error('[Excel]', err);
+      notify?.('No se pudo generar el Excel. Probá de nuevo.', false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mt-4 pt-4 border-t border-zinc-200 flex flex-col sm:flex-row sm:items-end gap-2.5">
+      <div className="min-w-0">
+        <label htmlFor="export-month" className="font-bold text-zinc-700 block mb-1 text-xs">Descargar Excel del mes</label>
+        <div className="flex items-center gap-2">
+          <input
+            id="export-month"
+            type="month"
+            value={monthValue}
+            max={currentMonthValue()}
+            onChange={(e) => setMonthValue(e.target.value)}
+            className={`${inputClass} w-auto font-mono`}
+          />
+          <label className="inline-flex items-center gap-1.5 text-xs font-bold text-zinc-600 cursor-pointer whitespace-nowrap">
+            <input type="checkbox" checked={wholeYear} onChange={(e) => setWholeYear(e.target.checked)} className="w-4 h-4 accent-[#083821]" />
+            Todo el año
+          </label>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={handleDownload}
+        disabled={busy}
+        className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1d6f42] hover:bg-[#185c37] px-4 py-2.5 text-xs font-heading uppercase tracking-wider text-white cursor-pointer disabled:opacity-60"
+      >
+        {busy ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
+        {busy ? 'Armando el Excel…' : `Descargar ${label}`}
+      </button>
+    </div>
+  );
+}
 
 const STATUS_FILTERS = [
   { id: 'activos', label: 'En curso' },
@@ -99,7 +186,7 @@ function OrderCard({ order, storeName, busy, onUpdate, onDelete, onVerifyMp, isF
   const next = {
     pendiente: { status: 'nuevo', label: 'Confirmar pedido', icon: CircleCheck },
     nuevo: { status: 'preparando', label: 'Empezar a preparar', icon: ChefHat },
-    preparando: { status: 'listo', label: isDelivery ? 'Salió el envío' : 'Listo para retirar', icon: CircleCheck },
+    preparando: { status: 'listo', label: isDelivery ? 'Salió el envío' : order.order_type === 'mesa' ? 'Listo para servir' : 'Listo para retirar', icon: CircleCheck },
     listo: { status: 'entregado', label: 'Marcar entregado', icon: CircleCheck }
   }[order.status];
 
@@ -118,6 +205,11 @@ function OrderCard({ order, storeName, busy, onUpdate, onDelete, onVerifyMp, isF
             <h4 className="font-heading text-lg uppercase text-[#083821] leading-none">#{order.code}</h4>
             <Badge className={status.className}>{status.label}</Badge>
             <Badge className={payment.className}>{payment.label}</Badge>
+            {order.source && order.source !== 'web' && (
+              <Badge className={ORDER_SOURCE[order.source]?.className || ORDER_SOURCE.otro.className}>
+                {ORDER_SOURCE[order.source]?.label || order.source}
+              </Badge>
+            )}
           </div>
           <p className="mt-1 text-[11px] font-medium text-zinc-500" title={formatDateTime(order.created_at)}>
             {formatTime(order.created_at)} hs · {timeAgo(order.created_at)}
@@ -135,17 +227,21 @@ function OrderCard({ order, storeName, busy, onUpdate, onDelete, onVerifyMp, isF
       <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
         <div className="rounded-2xl bg-[#f2eee2] border border-zinc-200 p-3 text-xs">
           <p className="font-bold text-[#083821]">{order.customer_name}</p>
-          <a
-            href={`tel:${String(order.customer_phone || '').replace(/[^\d+]/g, '')}`}
-            className="mt-0.5 inline-flex items-center gap-1 font-mono text-zinc-600 hover:text-[#083821]"
-          >
-            <Phone className="w-3 h-3" /> {order.customer_phone}
-          </a>
+          {order.customer_phone ? (
+            <a
+              href={`tel:${String(order.customer_phone || '').replace(/[^\d+]/g, '')}`}
+              className="mt-0.5 inline-flex items-center gap-1 font-mono text-zinc-600 hover:text-[#083821]"
+            >
+              <Phone className="w-3 h-3" /> {order.customer_phone}
+            </a>
+          ) : (
+            <p className="mt-0.5 text-zinc-400">Sin teléfono</p>
+          )}
         </div>
         <div className="rounded-2xl bg-[#f2eee2] border border-zinc-200 p-3 text-xs">
           <p className="font-bold text-[#083821] flex items-center gap-1.5">
-            {isDelivery ? <Bike className="w-3.5 h-3.5" /> : <Store className="w-3.5 h-3.5" />}
-            {isDelivery ? `Envío · ${order.zone_name || 'zona general'}` : 'Retira en el local'}
+            {isDelivery ? <Bike className="w-3.5 h-3.5" /> : order.order_type === 'mesa' ? <UtensilsCrossed className="w-3.5 h-3.5" /> : <Store className="w-3.5 h-3.5" />}
+            {isDelivery ? `Envío · ${order.zone_name || 'zona general'}` : ORDER_TYPE_LABEL[order.order_type] || 'Retira en el local'}
           </p>
           {isDelivery && (
             <p className="mt-0.5 text-zinc-600 flex items-start gap-1">
@@ -177,7 +273,11 @@ function OrderCard({ order, storeName, busy, onUpdate, onDelete, onVerifyMp, isF
           </li>
         ))}
         <li className="px-3 py-2 text-[11px] text-zinc-500 flex flex-wrap justify-between gap-2">
-          <span>Comida {money(order.subtotal)} · Envío {Number(order.shipping_fee) > 0 ? money(order.shipping_fee) : 'gratis'}</span>
+          <span>
+            Comida {money(order.subtotal)}
+            {isDelivery && ` · Envío ${Number(order.shipping_fee) > 0 ? money(order.shipping_fee) : 'gratis'}`}
+            {Number(order.discount) > 0 && ` · Descuento −${money(order.discount)}`}
+          </span>
           {order.payment_method === 'efectivo' && cash > 0 && (
             <span className="font-bold text-[#083821]">
               Paga con {money(cash)}{cash > order.total ? ` · vuelto ${money(cash - order.total)}` : ''}
@@ -248,6 +348,7 @@ function OrderCard({ order, storeName, busy, onUpdate, onDelete, onVerifyMp, isF
           </button>
         )}
 
+        {order.customer_phone && (
         <a
           href={whatsappUrl(order.customer_phone, customerMessage(order, notifyKind || (order.payment_status !== 'aprobado' ? 'pago' : 'hola'), storeName))}
           target="_blank"
@@ -258,6 +359,7 @@ function OrderCard({ order, storeName, busy, onUpdate, onDelete, onVerifyMp, isF
           <MessageCircle className="w-4 h-4" />
           {notifyKind === 'preparando' ? 'Avisar: en preparación' : notifyKind === 'listo' ? (isDelivery ? 'Avisar: salió' : 'Avisar: listo') : 'WhatsApp'}
         </a>
+        )}
 
         <div className="ml-auto flex items-center gap-1.5">
           {order.status !== 'cancelado' && order.status !== 'entregado' && (
@@ -289,9 +391,10 @@ function OrderCard({ order, storeName, busy, onUpdate, onDelete, onVerifyMp, isF
   );
 }
 
-export default function OrdersPanel({ storeName, notify }) {
+export default function OrdersPanel({ storeName, notify, onNewOrder }) {
   const [statusFilter, setStatusFilter] = useState('activos');
   const [range, setRange] = useState('hoy');
+  const [sourceFilter, setSourceFilter] = useState('todos');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [result, setResult] = useState({ orders: [], total: 0, counts: {} });
@@ -327,6 +430,7 @@ export default function OrdersPanel({ storeName, notify }) {
     if (!quiet) setLoading(true);
     const { data, error: requestError } = await adminListOrders({
       status: statusFilter,
+      source: sourceFilter === 'todos' ? undefined : sourceFilter,
       search: search || undefined,
       from: rangeStart(range) || undefined,
       limit: 150
@@ -338,7 +442,7 @@ export default function OrdersPanel({ storeName, notify }) {
     }
     setError(null);
     setResult({ orders: data?.orders || [], total: data?.total || 0, counts: data?.counts || {} });
-  }, [statusFilter, search, range]);
+  }, [statusFilter, search, range, sourceFilter]);
 
   useEffect(() => {
     load();
@@ -462,6 +566,12 @@ export default function OrdersPanel({ storeName, notify }) {
           subtitle="Se actualiza solo cada 20 segundos. Los pedidos “sin confirmar” son clientes que no terminaron el pago o el envío."
           action={
             <div className="flex items-center gap-1.5">
+              {onNewOrder && (
+                <button type="button" onClick={onNewOrder} className={secondaryButtonClass} title="Cargar un pedido del local, teléfono o WhatsApp">
+                  <PlusCircle className="w-4 h-4 text-[#eb623a]" />
+                  Cargar pedido
+                </button>
+              )}
               <button type="button" onClick={toggleSound} className={secondaryButtonClass} title="Sonido al entrar un pedido nuevo">
                 {soundOn ? <BellRing className="w-4 h-4" /> : <Bell className="w-4 h-4 opacity-50" />}
                 {soundOn ? 'Sonido' : 'Silencio'}
@@ -518,7 +628,21 @@ export default function OrdersPanel({ storeName, notify }) {
             ))}
           </div>
         </div>
-        <p className="mt-2 text-[10px] font-medium text-zinc-400">Los contadores corresponden al período elegido.</p>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[10px] font-medium text-zinc-400">Los contadores corresponden al período elegido.</p>
+          <select
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+            aria-label="Filtrar por origen"
+            className="rounded-lg border border-zinc-200 bg-[#f2eee2] px-2.5 py-1.5 text-[11px] font-black text-zinc-600 cursor-pointer"
+          >
+            {SOURCE_FILTERS.map((s) => (
+              <option key={s.id} value={s.id}>{s.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <ExportExcel storeName={storeName} notify={notify} />
       </Panel>
 
       {error ? (

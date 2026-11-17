@@ -5,7 +5,7 @@ import {
   CheckCircle, AlertCircle, Building2,
   Search, Edit3, X, Eye, EyeOff, Flame, KeyRound,
   PauseCircle, PlayCircle, CreditCard, Layers, ArrowUp, ArrowDown,
-  LayoutDashboard, ClipboardList, Bike, CopyPlus, LoaderCircle, Megaphone, ShieldCheck
+  LayoutDashboard, ClipboardList, Bike, CopyPlus, LoaderCircle, Megaphone, ShieldCheck, Receipt
 } from 'lucide-react';
 import {
   upsertMenuProduct, deleteMenuProduct, reorderMenuProducts, updateStoreSettings, isSupabaseConfigured
@@ -20,6 +20,7 @@ import AdminOverview from './AdminOverview';
 import OrdersPanel from './OrdersPanel';
 import DeliveryPanel from './DeliveryPanel';
 import PaymentsPanel from './PaymentsPanel';
+import ManualOrderPanel from './ManualOrderPanel';
 import { formatDateTime } from './adminUi';
 
 const EMPTY_PRODUCT = {
@@ -747,6 +748,7 @@ export default function AdminDashboard({
   const tabs = [
     { id: 'resumen', label: 'Resumen', icon: LayoutDashboard },
     { id: 'pedidos', label: 'Pedidos', icon: ClipboardList },
+    { id: 'nuevo-pedido', label: 'Cargar pedido', icon: Receipt },
     { id: 'menu', label: 'Gestor del Menú', icon: Utensils, count: products.length },
     { id: 'categorias', label: 'Secciones / Categorías', icon: Layers, count: categoryList.length },
     { id: 'extras', label: 'Extras / Toppings', icon: PlusCircle, count: toppingList.length },
@@ -892,7 +894,22 @@ export default function AdminDashboard({
       {/* PESTAÑA: PEDIDOS                                          */}
       {/* ========================================================= */}
       {activeTab === 'pedidos' && (
-        <OrdersPanel storeName={businessInfo?.name} notify={showNotification} />
+        <OrdersPanel storeName={businessInfo?.name} notify={showNotification} onNewOrder={() => setActiveTab('nuevo-pedido')} />
+      )}
+
+      {/* ========================================================= */}
+      {/* PESTAÑA: CARGAR PEDIDO (LOCAL, TELÉFONO, WHATSAPP)        */}
+      {/* ========================================================= */}
+      {activeTab === 'nuevo-pedido' && (
+        <ManualOrderPanel
+          products={products}
+          categories={categoryList}
+          toppings={toppingList}
+          storeConfig={storeConfig}
+          notify={showNotification}
+          reportError={reportError}
+          onGoToOrders={() => setActiveTab('pedidos')}
+        />
       )}
 
       {/* ========================================================= */}

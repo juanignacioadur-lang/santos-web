@@ -1,5 +1,5 @@
 -- =========================================================================
--- SANTOS · Script de configuración de Supabase (versión 2)
+-- SANTOS · Script de configuración de Supabase (versión 3)
 --
 -- CÓMO USARLO
 --   Supabase → SQL Editor → New query → pegá TODO este archivo → Run.
@@ -137,7 +137,7 @@ create table if not exists public.santos_orders (
   confirmed_at      timestamptz,
   status            text not null default 'pendiente'
                     check (status in ('pendiente', 'nuevo', 'preparando', 'listo', 'entregado', 'cancelado')),
-  order_type        text not null check (order_type in ('delivery', 'takeaway')),
+  order_type        text not null check (order_type in ('delivery', 'takeaway', 'mesa')),
   customer_name     text not null,
   customer_phone    text not null,
   address           text,
@@ -148,7 +148,7 @@ create table if not exists public.santos_orders (
   subtotal          numeric not null default 0,
   shipping_fee      numeric not null default 0,
   total             numeric not null default 0,
-  payment_method    text check (payment_method in ('transferencia', 'mercadopago', 'efectivo')),
+  payment_method    text check (payment_method in ('transferencia', 'mercadopago', 'efectivo', 'tarjeta')),
   payment_status    text not null default 'pendiente'
                     check (payment_status in ('pendiente', 'aprobado', 'rechazado', 'reembolsado')),
   cash_amount       numeric,
@@ -161,6 +161,28 @@ create table if not exists public.santos_orders (
 );
 create index if not exists santos_orders_created_idx on public.santos_orders (created_at desc);
 create index if not exists santos_orders_status_idx  on public.santos_orders (status);
+
+-- Pedidos cargados a mano desde el panel (local, teléfono, WhatsApp) — versión 3
+--   source:     de dónde vino el pedido
+--   discount:   descuento aplicado (solo pedidos manuales)
+--   order_type: suma "mesa" (consume en el local)
+--   payment_method: suma "tarjeta" (posnet)
+alter table public.santos_orders add column if not exists source   text    not null default 'web';
+alter table public.santos_orders add column if not exists discount numeric not null default 0;
+
+alter table public.santos_orders drop constraint if exists santos_orders_source_check;
+alter table public.santos_orders add constraint santos_orders_source_check
+  check (source in ('web', 'local', 'telefono', 'whatsapp', 'otro'));
+
+alter table public.santos_orders drop constraint if exists santos_orders_order_type_check;
+alter table public.santos_orders add constraint santos_orders_order_type_check
+  check (order_type in ('delivery', 'takeaway', 'mesa'));
+
+alter table public.santos_orders drop constraint if exists santos_orders_payment_method_check;
+alter table public.santos_orders add constraint santos_orders_payment_method_check
+  check (payment_method in ('transferencia', 'mercadopago', 'efectivo', 'tarjeta'));
+
+create index if not exists santos_orders_source_idx on public.santos_orders (source);
 
 -- -------------------------------------------------------------------------
 -- 4. FILA INICIAL DE AJUSTES + VALORES POR DEFECTO DE LAS COLUMNAS NUEVAS
@@ -1191,6 +1213,7 @@ as $$
 declare
   v_filter  jsonb := coalesce(p_filter, '{}'::jsonb);
   v_status  text := nullif(v_filter ->> 'status', '');
+  v_source  text := nullif(v_filter ->> 'source', '');
   v_search  text := nullif(btrim(coalesce(v_filter ->> 'search', '')), '');
   v_from    timestamptz := nullif(v_filter ->> 'from', '')::timestamptz;
   v_to      timestamptz := nullif(v_filter ->> 'to', '')::timestamptz;
@@ -1207,6 +1230,7 @@ begin
     from public.santos_orders o
     where (v_from is null or o.created_at >= v_from)
       and (v_to is null or o.created_at < v_to)
+      and (v_source is null or v_source = 'todos' or o.source = v_source)
       and (
         v_search is null
         or o.code ilike '%' || v_search || '%'
@@ -1392,10 +1416,280 @@ begin
     'drafts_today', (
       select count(*) from public.santos_orders
       where status = 'pendiente' and (created_at at time zone v_tz)::date = v_today
+    ),
+    'by_source', (
+      select coalesce(jsonb_object_agg(s.source, jsonb_build_object('orders', s.n, 'revenue', s.r)), '{}'::jsonb)
+      from (
+        select source, count(*) as n, coalesce(sum(total), 0) as r
+        from valid group by 1
+      ) s
+    ),
+    -- Caja de hoy: lo cobrado (o a cobrar) hoy, por medio de pago
+    'today_by_payment', (
+      select coalesce(jsonb_object_agg(c.method, jsonb_build_object('orders', c.n, 'revenue', c.r, 'paid', c.p)), '{}'::jsonb)
+      from (
+        select coalesce(payment_method, 'sin_definir') as method,
+               count(*) as n,
+               coalesce(sum(total), 0) as r,
+               coalesce(sum(total) filter (where payment_status = 'aprobado'), 0) as p
+        from valid
+        where day = v_today
+        group by 1
+      ) c
     )
   ) into v_result;
 
   return v_result;
+end;
+$$;
+
+-- =========================================================================
+-- 12 b. PEDIDOS CARGADOS A MANO (local, teléfono, WhatsApp) Y EXPORTACIÓN
+-- =========================================================================
+
+create or replace function public.santos_admin_create_order(p_token text, p_order jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions, pg_temp
+as $$
+declare
+  v_settings  public.santos_settings;
+  v_product   public.santos_products;
+  v_row       public.santos_orders;
+  v_source    text := coalesce(nullif(p_order ->> 'source', ''), 'local');
+  v_type      text := coalesce(nullif(p_order ->> 'order_type', ''), 'takeaway');
+  v_status    text := coalesce(nullif(p_order ->> 'status', ''), 'nuevo');
+  v_method    text := nullif(p_order ->> 'payment_method', '');
+  v_paid      boolean := false;
+  v_name      text := btrim(coalesce(p_order -> 'customer' ->> 'name', ''));
+  v_phone     text := btrim(coalesce(p_order -> 'customer' ->> 'phone', ''));
+  v_street    text := btrim(coalesce(p_order -> 'customer' ->> 'street', ''));
+  v_apartment text := btrim(coalesce(p_order -> 'customer' ->> 'apartment', ''));
+  v_notes     text := btrim(coalesce(p_order -> 'customer' ->> 'notes', ''));
+  v_items     jsonb := p_order -> 'items';
+  v_item      jsonb;
+  v_qty       integer;
+  v_unit      numeric;
+  v_price     numeric;
+  v_title     text;
+  v_tid       text;
+  v_topping   jsonb;
+  v_item_tops jsonb;
+  v_out       jsonb := '[]'::jsonb;
+  v_subtotal  numeric := 0;
+  v_fee       numeric := 0;
+  v_discount  numeric := 0;
+  v_cash      numeric;
+  v_zone      jsonb;
+  v_zone_name text;
+begin
+  perform public.santos_require_admin(p_token);
+
+  if p_order is null or jsonb_typeof(p_order) <> 'object' then
+    raise exception 'SANTOS_INVALID_ORDER';
+  end if;
+  if v_source not in ('local', 'telefono', 'whatsapp', 'otro') then
+    raise exception 'SANTOS_INVALID_SOURCE';
+  end if;
+  if v_type not in ('delivery', 'takeaway', 'mesa') then
+    raise exception 'SANTOS_INVALID_ORDER_TYPE';
+  end if;
+  if v_status not in ('nuevo', 'preparando', 'listo', 'entregado') then
+    raise exception 'SANTOS_INVALID_STATUS';
+  end if;
+  if v_method is not null and v_method not in ('transferencia', 'mercadopago', 'efectivo', 'tarjeta') then
+    raise exception 'SANTOS_INVALID_METHOD';
+  end if;
+  if v_items is null or jsonb_typeof(v_items) <> 'array' or jsonb_array_length(v_items) = 0 then
+    raise exception 'SANTOS_EMPTY_ORDER';
+  end if;
+  if jsonb_array_length(v_items) > 100 then
+    raise exception 'SANTOS_TOO_MANY_ITEMS';
+  end if;
+
+  begin
+    v_paid := coalesce((p_order ->> 'paid')::boolean, false);
+  exception when others then
+    v_paid := false;
+  end;
+
+  select * into v_settings from public.santos_settings where id = 1;
+
+  for v_item in select value from jsonb_array_elements(v_items) loop
+    begin
+      v_qty := (v_item ->> 'quantity')::integer;
+    exception when others then
+      v_qty := null;
+    end;
+    if v_qty is null or v_qty < 1 or v_qty > 999 then
+      raise exception 'SANTOS_INVALID_QUANTITY';
+    end if;
+
+    if coalesce(v_item ->> 'custom', 'false') = 'true' then
+      -- Ítem libre (algo que no está en el menú)
+      v_title := left(btrim(coalesce(v_item ->> 'title', '')), 120);
+      begin
+        v_price := (v_item ->> 'price')::numeric;
+      exception when others then
+        v_price := null;
+      end;
+      if v_title = '' or v_price is null or v_price < 0 then
+        raise exception 'SANTOS_INVALID_CUSTOM_ITEM';
+      end if;
+      v_unit := v_price;
+      v_out := v_out || jsonb_build_array(jsonb_build_object(
+        'id', null,
+        'custom', true,
+        'title', v_title,
+        'quantity', v_qty,
+        'base_price', v_price,
+        'unit_price', v_unit,
+        'line_total', v_unit * v_qty,
+        'toppings', '[]'::jsonb,
+        'notes', left(btrim(coalesce(v_item ->> 'notes', '')), 200)
+      ));
+    else
+      select * into v_product from public.santos_products where id = (v_item ->> 'id');
+      if not found then
+        raise exception 'SANTOS_PRODUCT_NOT_FOUND';
+      end if;
+
+      v_unit := v_product.price;
+      v_item_tops := '[]'::jsonb;
+
+      if jsonb_typeof(v_item -> 'toppings') = 'array' then
+        for v_tid in select distinct value from jsonb_array_elements_text(v_item -> 'toppings') loop
+          select t.value into v_topping
+          from jsonb_array_elements(coalesce(v_settings.toppings, '[]'::jsonb)) as t
+          where t.value ->> 'id' = v_tid
+          limit 1;
+
+          if v_topping is null then
+            raise exception 'SANTOS_TOPPING_NOT_FOUND';
+          end if;
+
+          v_unit := v_unit + greatest(coalesce((v_topping ->> 'price')::numeric, 0), 0);
+          v_item_tops := v_item_tops || jsonb_build_array(jsonb_build_object(
+            'id', v_tid,
+            'name', v_topping ->> 'name',
+            'price', greatest(coalesce((v_topping ->> 'price')::numeric, 0), 0)
+          ));
+        end loop;
+      end if;
+
+      v_out := v_out || jsonb_build_array(jsonb_build_object(
+        'id', v_product.id,
+        'title', v_product.title,
+        'quantity', v_qty,
+        'base_price', v_product.price,
+        'unit_price', v_unit,
+        'line_total', v_unit * v_qty,
+        'toppings', v_item_tops,
+        'notes', left(btrim(coalesce(v_item ->> 'notes', '')), 200)
+      ));
+    end if;
+
+    v_subtotal := v_subtotal + v_unit * v_qty;
+  end loop;
+
+  -- Envío: zona elegida o costo escrito a mano
+  if v_type = 'delivery' then
+    if nullif(p_order ->> 'zone_id', '') is not null then
+      select z.value into v_zone
+      from jsonb_array_elements(coalesce(v_settings.delivery_zones, '[]'::jsonb)) as z
+      where z.value ->> 'id' = (p_order ->> 'zone_id')
+      limit 1;
+    end if;
+    v_zone_name := coalesce(v_zone ->> 'name', nullif(left(btrim(coalesce(p_order ->> 'zone_name', '')), 60), ''));
+    begin
+      v_fee := (p_order ->> 'shipping_fee')::numeric;
+    exception when others then
+      v_fee := null;
+    end;
+    v_fee := greatest(coalesce(v_fee, (v_zone ->> 'fee')::numeric, 0), 0);
+  end if;
+
+  begin
+    v_discount := greatest(coalesce((p_order ->> 'discount')::numeric, 0), 0);
+  exception when others then
+    v_discount := 0;
+  end;
+  v_discount := least(v_discount, v_subtotal + v_fee);
+
+  if v_method = 'efectivo' then
+    begin
+      v_cash := nullif((p_order ->> 'cash_amount')::numeric, 0);
+    exception when others then
+      v_cash := null;
+    end;
+  end if;
+
+  insert into public.santos_orders (
+    code, public_token, source, order_type, status, confirmed_at,
+    customer_name, customer_phone, address, apartment, address_notes, zone_name,
+    items, subtotal, shipping_fee, discount, total,
+    payment_method, payment_status, paid_at, cash_amount, admin_notes
+  )
+  values (
+    'SNT-' || nextval('public.santos_order_seq'),
+    replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''),
+    v_source,
+    v_type,
+    v_status,
+    now(),
+    left(coalesce(nullif(v_name, ''), case v_source
+      when 'local' then 'Cliente en el local'
+      when 'telefono' then 'Pedido por teléfono'
+      when 'whatsapp' then 'Pedido por WhatsApp'
+      else 'Sin nombre'
+    end), 80),
+    left(v_phone, 40),
+    case when v_type = 'delivery' then nullif(left(v_street, 160), '') end,
+    case when v_type = 'delivery' then nullif(left(v_apartment, 60), '') end,
+    case when v_type = 'delivery' then nullif(left(v_notes, 200), '') end,
+    v_zone_name,
+    v_out,
+    v_subtotal,
+    v_fee,
+    v_discount,
+    v_subtotal + v_fee - v_discount,
+    v_method,
+    case when v_paid then 'aprobado' else 'pendiente' end,
+    case when v_paid then now() end,
+    v_cash,
+    nullif(left(btrim(coalesce(p_order ->> 'admin_notes', '')), 500), '')
+  )
+  returning * into v_row;
+
+  return to_jsonb(v_row) - 'public_token';
+end;
+$$;
+
+-- Todos los pedidos confirmados de un período (para el Excel)
+create or replace function public.santos_admin_export_orders(p_token text, p_from timestamptz, p_to timestamptz)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions, pg_temp
+as $$
+begin
+  perform public.santos_require_admin(p_token);
+
+  if p_from is null or p_to is null or p_to <= p_from then
+    raise exception 'SANTOS_INVALID_RANGE';
+  end if;
+  if p_to - p_from > interval '400 days' then
+    raise exception 'SANTOS_RANGE_TOO_LONG';
+  end if;
+
+  return coalesce((
+    select jsonb_agg((to_jsonb(o) - 'public_token') order by o.created_at)
+    from public.santos_orders o
+    where o.created_at >= p_from
+      and o.created_at < p_to
+      and o.status <> 'pendiente'
+  ), '[]'::jsonb);
 end;
 $$;
 
@@ -1506,6 +1800,8 @@ grant execute on function
   public.santos_admin_update_order(text, text, jsonb),
   public.santos_admin_delete_order(text, text),
   public.santos_admin_stats(text, integer),
+  public.santos_admin_create_order(text, jsonb),
+  public.santos_admin_export_orders(text, timestamptz, timestamptz),
   public.santos_admin_set_mp(text, text, text, text, text),
   public.santos_admin_clear_mp(text)
 to anon, authenticated, service_role;

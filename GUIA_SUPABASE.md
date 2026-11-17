@@ -24,6 +24,11 @@ Son 3 pasos. Ninguno borra productos, secciones, extras, horarios ni datos de co
 
 Se puede ejecutar más de una vez sin problema. Corre en una transacción: si algo falla no se aplica nada.
 
+> **¿Ya lo habías corrido antes?** Cada vez que el archivo cambia hay que volver a ejecutarlo
+> completo (la versión figura en la primera línea). La **versión 3** agrega los pedidos cargados
+> a mano (local, teléfono, WhatsApp), el pago con tarjeta, la caja del día y la exportación a Excel.
+> No toca nada de lo que ya tenés guardado.
+
 **Qué hace:**
 
 - **Cierra un agujero de seguridad grave.** Hasta ahora cualquiera con la clave pública de la web

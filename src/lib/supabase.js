@@ -302,6 +302,16 @@ export function adminGetStats(days = 30) {
   return adminRpc('santos_admin_stats', { p_days: days });
 }
 
+// Pedido cargado a mano desde el panel (local, teléfono, WhatsApp)
+export function adminCreateOrder(order) {
+  return adminRpc('santos_admin_create_order', { p_order: order });
+}
+
+// Pedidos confirmados de un período (para el Excel). Puede tardar si son muchos.
+export function adminExportOrders(from, to) {
+  return adminRpc('santos_admin_export_orders', { p_from: from, p_to: to }, { timeoutMs: 45000 });
+}
+
 // =========================================================================
 // MERCADO PAGO (Edge Function "mercadopago")
 // =========================================================================
