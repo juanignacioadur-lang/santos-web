@@ -1,9 +1,9 @@
 // src/data/menu.js
-// Catálogo gastronómico oficial de Santos Smash Burgers (solo comida)
+// Catálogo gastronómico oficial de Santos Burgers (solo comida)
 export const DEFAULT_CATEGORIES = [
   { id: 'favoritos', label: 'Favoritos Santos' },
-  { id: 'con-papas', label: 'Smash con Papas' },
-  { id: 'sin-papas', label: 'Smash sin Papas' },
+  { id: 'con-papas', label: 'Burgers con Papas' },
+  { id: 'sin-papas', label: 'Burgers sin Papas' },
   { id: 'cajas-combos', label: 'Cajas & Combos' },
   { id: 'papas', label: 'Papas Fritas' },
   { id: 'bebidas', label: 'Bebidas' },
@@ -11,8 +11,8 @@ export const DEFAULT_CATEGORIES = [
 export const MENU_CATEGORIES = [
   { id: 'todos', label: 'Todo el menú', icon: 'Flame' },
   { id: 'favoritos', label: 'Favoritos Santos', icon: 'Star' },
-  { id: 'con-papas', label: 'Smash con Papas', icon: 'Beef' },
-  { id: 'sin-papas', label: 'Smash sin Papas', icon: 'Utensils' },
+  { id: 'con-papas', label: 'Burgers con Papas', icon: 'Beef' },
+  { id: 'sin-papas', label: 'Burgers sin Papas', icon: 'Utensils' },
   { id: 'cajas-combos', label: 'Cajas & Combos', icon: 'Package' },
   { id: 'papas', label: 'Papas Fritas', icon: 'CookingPot' },
   { id: 'bebidas', label: 'Bebidas', icon: 'Beer' },
@@ -20,7 +20,7 @@ export const MENU_CATEGORIES = [
 
 // LISTA DE TOPPINGS Y MODIFICADORES CON PRECIOS EN PESOS (ARS)
 export const AVAILABLE_TOPPINGS = [
-  { id: 'extra-smash', name: 'Medallón Smash Extra (100g)', price: 3200, category: 'carne' },
+  { id: 'extra-medallon', name: 'Medallón Extra (100g)', price: 3200, category: 'carne' },
   { id: 'extra-cheddar', name: 'Doble Queso Cheddar Fundido', price: 1800, category: 'queso' },
   { id: 'extra-bacon', name: 'Bacon Ahumado Extra Crocante', price: 2100, category: 'crujiente' },
   { id: 'cebolla-crispy', name: 'Lluvia de Cebolla Crispy', price: 1400, category: 'crujiente' },
@@ -40,8 +40,8 @@ export const INITIAL_MENU = [
     originalPrice: null,
     badge: "Firma de la casa",
     tagline: "Doble medallón, cheddar americano y la salsa que nos hizo nombre.",
-    description: "Pan brioche de papa, doble carne smash, doble cheddar americano, cebolla picada finita, pickles y salsa Santos.",
-    ingredients: ["Pan Brioche", "Doble Smash", "Doble Cheddar", "Cebolla", "Pickles", "Salsa Santos"],
+    description: "Pan brioche de papa, doble carne, doble cheddar americano, cebolla picada finita, pickles y salsa Santos.",
+    ingredients: ["Pan Brioche", "Doble Medallón", "Doble Cheddar", "Cebolla", "Pickles", "Salsa Santos"],
     allowsToppings: true,
     image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=900&auto=format&fit=crop&q=80"
   },
@@ -52,9 +52,9 @@ export const INITIAL_MENU = [
     price: 14800,
     originalPrice: null,
     badge: "Favorita",
-    tagline: "Cebolla smasheada en plancha, cheddar fundido y final dulzón.",
-    description: "Pan brioche, doble carne smash, cheddar, cebolla blanca prensada sobre la plancha y mayo ahumada.",
-    ingredients: ["Pan Brioche", "Doble Smash", "Cheddar", "Cebolla Smasheada", "Mayo Ahumada"],
+    tagline: "Cebolla dorada en plancha, cheddar fundido y final dulzón.",
+    description: "Pan brioche, doble carne, cheddar, cebolla blanca prensada sobre la plancha y mayo ahumada.",
+    ingredients: ["Pan Brioche", "Doble Medallón", "Cheddar", "Cebolla a la Plancha", "Mayo Ahumada"],
     allowsToppings: true,
     image: "https://images.unsplash.com/photo-1586190848861-99aa4a171e90?w=900&auto=format&fit=crop&q=80"
   },
@@ -66,13 +66,13 @@ export const INITIAL_MENU = [
     originalPrice: null,
     badge: "Bien arriba",
     tagline: "Pickles crocantes, cebolla morada y salsa pickle con mordida fresca.",
-    description: "Carne smash, cheddar, pickles encurtidos, cebolla morada y salsa pickle en pan de papa.",
-    ingredients: ["Pan de Papa", "Smash", "Cheddar", "Pickles", "Cebolla Morada", "Salsa Pickle"],
+    description: "Medallón de carne, cheddar, pickles encurtidos, cebolla morada y salsa pickle en pan de papa.",
+    ingredients: ["Pan de Papa", "Medallón", "Cheddar", "Pickles", "Cebolla Morada", "Salsa Pickle"],
     allowsToppings: true,
     image: "https://images.unsplash.com/photo-1553979459-d2229ba7433b?w=900&auto=format&fit=crop&q=80"
   },
 
-  // ============================ SMASH CON PAPAS ============================
+  // ============================ BURGERS CON PAPAS ============================
   {
     id: 4,
     title: "CHEESE CON PAPAS",
@@ -80,9 +80,9 @@ export const INITIAL_MENU = [
     price: 14500,
     originalPrice: null,
     badge: null,
-    tagline: "Pan de papa, carne smash, cheddar y una porción individual de papas.",
-    description: "Smash simple con cheddar americano acompañado de papas fritas clásicas.",
-    ingredients: ["Pan de Papa", "Smash", "Cheddar", "Papas"],
+    tagline: "Pan de papa, carne a la plancha, cheddar y una porción individual de papas.",
+    description: "Burger simple con cheddar americano acompañado de papas fritas clásicas.",
+    ingredients: ["Pan de Papa", "Medallón", "Cheddar", "Papas"],
     allowsToppings: true,
     image: "https://images.unsplash.com/photo-1550547660-d9450f859349?w=900&auto=format&fit=crop&q=80"
   },
@@ -94,8 +94,8 @@ export const INITIAL_MENU = [
     originalPrice: null,
     badge: null,
     tagline: "Lechuga, tomate, salsa especial y papas al costado.",
-    description: "Smash simple con cheddar, lechuga, tomate fresco, salsa especial y porción de papas.",
-    ingredients: ["Pan de Papa", "Smash", "Cheddar", "Lechuga", "Tomate", "Salsa Especial", "Papas"],
+    description: "Burger simple con cheddar, lechuga, tomate fresco, salsa especial y porción de papas.",
+    ingredients: ["Pan de Papa", "Medallón", "Cheddar", "Lechuga", "Tomate", "Salsa Especial", "Papas"],
     allowsToppings: true,
     image: "https://images.unsplash.com/photo-1572802419224-296b0aeee0d9?w=900&auto=format&fit=crop&q=80"
   },
@@ -106,9 +106,9 @@ export const INITIAL_MENU = [
     price: 18500,
     originalPrice: null,
     badge: null,
-    tagline: "Doble carne con cebolla smasheada y cheddar, más papas.",
-    description: "Doble smash con cebolla prensada en plancha, cheddar americano y papas fritas.",
-    ingredients: ["Pan de Papa", "Doble Smash", "Cheddar", "Cebolla Smasheada", "Papas"],
+    tagline: "Doble carne con cebolla a la plancha y cheddar, más papas.",
+    description: "Doble carne con cebolla prensada en plancha, cheddar americano y papas fritas.",
+    ingredients: ["Pan de Papa", "Doble Medallón", "Cheddar", "Cebolla a la Plancha", "Papas"],
     allowsToppings: true,
     image: "https://images.unsplash.com/photo-1586190848861-99aa4a171e90?w=900&auto=format&fit=crop&q=80"
   },
@@ -120,8 +120,8 @@ export const INITIAL_MENU = [
     originalPrice: null,
     badge: null,
     tagline: "Pepinos encurtidos, cebolla morada, salsa pickle y papas.",
-    description: "Smash simple con cheddar, pickles, cebolla morada, salsa pickle y papas fritas.",
-    ingredients: ["Pan de Papa", "Smash", "Cheddar", "Pickles", "Cebolla Morada", "Salsa Pickle", "Papas"],
+    description: "Burger simple con cheddar, pickles, cebolla morada, salsa pickle y papas fritas.",
+    ingredients: ["Pan de Papa", "Medallón", "Cheddar", "Pickles", "Cebolla Morada", "Salsa Pickle", "Papas"],
     allowsToppings: true,
     image: "https://images.unsplash.com/photo-1553979459-d2229ba7433b?w=900&auto=format&fit=crop&q=80"
   },
@@ -133,8 +133,8 @@ export const INITIAL_MENU = [
     originalPrice: null,
     badge: null,
     tagline: "Cebolla crispy, mayo de ajo y una porción de papas bien calientes.",
-    description: "Smash simple con cheddar, cebolla crispy, lactonesa de ajo y papas fritas.",
-    ingredients: ["Pan de Papa", "Smash", "Cheddar", "Cebolla Crispy", "Lactonesa de Ajo", "Papas"],
+    description: "Burger simple con cheddar, cebolla crispy, lactonesa de ajo y papas fritas.",
+    ingredients: ["Pan de Papa", "Medallón", "Cheddar", "Cebolla Crispy", "Lactonesa de Ajo", "Papas"],
     allowsToppings: true,
     image: "https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?w=900&auto=format&fit=crop&q=80"
   },
@@ -145,9 +145,9 @@ export const INITIAL_MENU = [
     price: 11000,
     originalPrice: null,
     badge: null,
-    tagline: "Smash simple, cheddar y pan de papa. La más recta de todas.",
-    description: "Carne smash, cheddar americano y pan brioche de papa tostado.",
-    ingredients: ["Pan Brioche", "Smash", "Cheddar"],
+    tagline: "Burger simple, cheddar y pan de papa. La más recta de todas.",
+    description: "Medallón de carne, cheddar americano y pan brioche de papa tostado.",
+    ingredients: ["Pan Brioche", "Medallón", "Cheddar"],
     allowsToppings: true,
     image: "https://images.unsplash.com/photo-1550547660-d9450f859349?w=900&auto=format&fit=crop&q=80"
   },
@@ -159,8 +159,8 @@ export const INITIAL_MENU = [
     originalPrice: null,
     badge: null,
     tagline: "La clásica con lechuga, tomate y salsa especial, sin acompañamiento.",
-    description: "Smash simple con cheddar, lechuga, tomate y salsa especial.",
-    ingredients: ["Pan de Papa", "Smash", "Cheddar", "Lechuga", "Tomate", "Salsa Especial"],
+    description: "Burger simple con cheddar, lechuga, tomate y salsa especial.",
+    ingredients: ["Pan de Papa", "Medallón", "Cheddar", "Lechuga", "Tomate", "Salsa Especial"],
     allowsToppings: true,
     image: "https://images.unsplash.com/photo-1572802419224-296b0aeee0d9?w=900&auto=format&fit=crop&q=80"
   },
@@ -171,9 +171,9 @@ export const INITIAL_MENU = [
     price: 14000,
     originalPrice: null,
     badge: null,
-    tagline: "Doble carne, cebolla smasheada y cheddar, toda la potencia sin guarnición.",
-    description: "Pan brioche, doble smash, cheddar americano y cebolla prensada en plancha.",
-    ingredients: ["Pan Brioche", "Doble Smash", "Cheddar", "Cebolla Smasheada"],
+    tagline: "Doble carne, cebolla a la plancha y cheddar, toda la potencia sin guarnición.",
+    description: "Pan brioche, doble carne, cheddar americano y cebolla prensada en plancha.",
+    ingredients: ["Pan Brioche", "Doble Medallón", "Cheddar", "Cebolla a la Plancha"],
     allowsToppings: true,
     image: "https://images.unsplash.com/photo-1586190848861-99aa4a171e90?w=900&auto=format&fit=crop&q=80"
   },
@@ -185,8 +185,8 @@ export const INITIAL_MENU = [
     originalPrice: null,
     badge: null,
     tagline: "Pickles, cebolla morada y salsa pickle para cortar bien la grasa.",
-    description: "Smash simple con cheddar, pickles, cebolla morada y salsa pickle.",
-    ingredients: ["Pan de Papa", "Smash", "Cheddar", "Pickles", "Cebolla Morada", "Salsa Pickle"],
+    description: "Burger simple con cheddar, pickles, cebolla morada y salsa pickle.",
+    ingredients: ["Pan de Papa", "Medallón", "Cheddar", "Pickles", "Cebolla Morada", "Salsa Pickle"],
     allowsToppings: true,
     image: "https://images.unsplash.com/photo-1553979459-d2229ba7433b?w=900&auto=format&fit=crop&q=80"
   },
@@ -198,8 +198,8 @@ export const INITIAL_MENU = [
     originalPrice: null,
     badge: null,
     tagline: "Cebolla crispy y lactonesa de ajo, sin desviar el foco del pan y la costra.",
-    description: "Smash simple con cheddar, cebolla crispy y lactonesa de ajo.",
-    ingredients: ["Pan de Papa", "Smash", "Cheddar", "Cebolla Crispy", "Lactonesa de Ajo"],
+    description: "Burger simple con cheddar, cebolla crispy y lactonesa de ajo.",
+    ingredients: ["Pan de Papa", "Medallón", "Cheddar", "Cebolla Crispy", "Lactonesa de Ajo"],
     allowsToppings: true,
     image: "https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?w=900&auto=format&fit=crop&q=80"
   },
@@ -213,8 +213,8 @@ export const INITIAL_MENU = [
     originalPrice: null,
     badge: "Para compartir",
     tagline: "Cuatro cheese simples listas para una mesa chica o una oficina con hambre.",
-    description: "Caja cerrada con cuatro cheese smash simples, listas para salir juntas.",
-    ingredients: ["4 Cheese Smash", "Pan de Papa", "Cheddar"],
+    description: "Caja cerrada con cuatro cheese burgers simples, listas para salir juntas.",
+    ingredients: ["4 Cheese Burgers", "Pan de Papa", "Cheddar"],
     allowsToppings: false,
     image: "https://images.unsplash.com/photo-1561758033-d89a9ad46330?w=900&auto=format&fit=crop&q=80"
   },
@@ -225,9 +225,9 @@ export const INITIAL_MENU = [
     price: 42000,
     originalPrice: null,
     badge: "Va fuerte",
-    tagline: "Cuatro dobles smash para cuando hay que resolver una juntada en serio.",
+    tagline: "Cuatro burgers dobles para cuando hay que resolver una juntada en serio.",
     description: "Caja con cuatro burgers dobles de la casa, listas para compartir.",
-    ingredients: ["4 Dobles Smash", "Pan Brioche", "Cheddar", "Salsa Santos"],
+    ingredients: ["4 Burgers Dobles", "Pan Brioche", "Cheddar", "Salsa Santos"],
     allowsToppings: false,
     image: "https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=900&auto=format&fit=crop&q=80"
   },
@@ -241,7 +241,7 @@ export const INITIAL_MENU = [
     originalPrice: null,
     badge: null,
     tagline: "Porción individual de papas fritas, crocantes y al punto.",
-    description: "Papas clásicas estilo fast food, ideales para acompañar cualquier smash.",
+    description: "Papas clásicas estilo fast food, ideales para acompañar cualquier burger.",
     ingredients: ["Papas Fritas"],
     allowsToppings: false,
     image: "https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?w=900&auto=format&fit=crop&q=80"

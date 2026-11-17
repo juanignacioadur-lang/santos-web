@@ -198,7 +198,7 @@ export default function AnimatedBurger({ className = '' }) {
               </svg>
             </motion.div>
 
-            {/* 4. MEDALLÓN SMASH #1 (costra Maillard) */}
+            {/* 4. MEDALLÓN #1 (costra Maillard) */}
             <motion.div custom={3} variants={dropVariants} className="absolute bottom-16 z-40 w-56 sm:w-64">
               <svg viewBox="0 0 210 34" className="w-full">
                 <g filter="url(#s-drop)">
@@ -231,7 +231,7 @@ export default function AnimatedBurger({ className = '' }) {
               </svg>
             </motion.div>
 
-            {/* 6. MEDALLÓN SMASH #2 + BACON AHUMADO */}
+            {/* 6. MEDALLÓN #2 + BACON AHUMADO */}
             <motion.div custom={5} variants={dropVariants} className="absolute bottom-24 z-[60] w-56 sm:w-64">
               <svg viewBox="0 0 210 24" className="w-full mb-[-10px] relative z-10">
                 <g filter="url(#s-drop)">

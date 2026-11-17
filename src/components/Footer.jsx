@@ -1,10 +1,9 @@
 // src/components/Footer.jsx
 import React from 'react';
 import { MapPin, ArrowUp, MessageCircle } from 'lucide-react';
-import { BUSINESS_CONFIG } from '../data/business';
+import { BUSINESS_CONFIG, getStoreNow } from '../data/business';
+import { normalizeWhatsappNumber } from '../lib/orderMessage';
 
-const CURRENT_YEAR = new Date().getFullYear();
-const TODAY_INDEX = new Date().getDay();
 
 const getInstagramHandle = (urlOrHandle) => {
   if (!urlOrHandle) return 'santos';
@@ -20,11 +19,15 @@ export default function Footer({
   businessInfo = BUSINESS_CONFIG, 
   bankingInfo = BUSINESS_CONFIG.banking 
 }) {
+  // Día y año según la hora del local (se recalcula en cada render, no queda fijo desde que abrió la página)
+  const todayIndex = getStoreNow().day;
+  const currentYear = new Date().getFullYear();
+
   const [street, ...rest] = (businessInfo.address || '').split(',');
   const city = rest.length > 0 ? rest.join(',').trim() : (businessInfo.city || '');
 
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(businessInfo.address || '')}`;
-  const cleanWhatsappPhone = (bankingInfo?.whatsappKitchen || '').replace(/[^0-9]/g, '');
+  const cleanWhatsappPhone = normalizeWhatsappNumber(bankingInfo?.whatsappKitchen);
 
   const scrollToMenu = () => {
     const el = document.getElementById('menu-section');
@@ -35,7 +38,7 @@ export default function Footer({
   const hours = [1, 2, 3, 4, 5, 6, 0].map((day) => {
     const slot = businessInfo.schedule ? businessInfo.schedule[day] : null;
     let timeValue = 'Cerrado';
-    if (slot) {
+    if (slot && slot.open && slot.close) {
       if (slot.open2 && slot.close2) {
         timeValue = (
           <div className="flex items-center gap-1.5 whitespace-nowrap">
@@ -51,7 +54,7 @@ export default function Footer({
     return {
       label: DAY_NAMES[day],
       value: timeValue,
-      isToday: day === TODAY_INDEX,
+      isToday: day === todayIndex,
     };
   });
 
@@ -184,7 +187,7 @@ export default function Footer({
 
           {/* Barra inferior */}
           <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-6 text-[11px] text-white/40 sm:flex-row pb-6">
-            <span>© {CURRENT_YEAR} Santos · {city.split(',').pop() || 'Villa Carlos Paz'}</span>
+            <span>© {currentYear} Santos · {city.split(',').pop() || 'Villa Carlos Paz'}</span>
             
             <div className="flex items-center gap-6">
               <button 

@@ -1,16 +1,44 @@
-# React + Vite
+# Santos · Web de pedidos
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Tienda online de Santos (Villa Carlos Paz): menú, carrito, pedidos por WhatsApp,
+pago con Mercado Pago y panel de administración.
 
-Currently, two official plugins are available:
+**Stack:** React 19 + Vite + Tailwind 4 · Supabase (base de datos + Edge Function) · Cloudflare Pages.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Desarrollo
 
-## React Compiler
+```bash
+npm install
+npm run dev      # http://localhost:5173
+npm run build    # genera dist/
+npm run lint
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Variables (archivo `.env`, opcional: hay valores por defecto para producción):
 
-## Expanding the Oxlint configuration
+```
+VITE_SUPABASE_URL=https://<proyecto>.supabase.co
+VITE_SUPABASE_ANON_KEY=<clave publishable / anon>
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+Sin Supabase la web funciona en **modo demo** (todo se guarda en el navegador).
+
+## Supabase
+
+Todo lo que hay que subir está explicado paso a paso en **[GUIA_SUPABASE.md](GUIA_SUPABASE.md)**:
+
+- `supabase_setup.sql` → tablas, seguridad (RLS) y funciones.
+- `supabase/functions/mercadopago/` → Edge Function de Mercado Pago (Checkout Pro + avisos de pago).
+
+## Estructura
+
+```
+src/
+  App.jsx                    estado general, carga de datos, estado abierto/cerrado
+  components/                tienda pública (menú, carrito, checkout, aviso de cerrado…)
+  components/admin/          panel: resumen, pedidos, menú, secciones, extras,
+                             horarios, envíos, pagos y seguridad
+  data/business.js           horarios y cálculo de abierto/cerrado (hora de Córdoba)
+  lib/supabase.js            lectura del menú/ajustes, pedidos y Mercado Pago
+  lib/adminSession.js        sesión del panel (token que vence; la clave nunca se guarda)
+```

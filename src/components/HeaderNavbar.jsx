@@ -1,5 +1,5 @@
 // src/components/HeaderNavbar.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ShoppingBag, LayoutDashboard, Store, Menu, X } from 'lucide-react';
 import { getStoreStatus, BUSINESS_CONFIG } from '../data/business';
 
@@ -9,20 +9,13 @@ export default function HeaderNavbar({
   onOpenCart = () => {},
   isAdminView = false,
   onToggleAdmin = () => {},
-  businessInfo = BUSINESS_CONFIG
+  businessInfo = BUSINESS_CONFIG,
+  storeStatus: storeStatusProp = null
 }) {
-  const [storeStatus, setStoreStatus] = useState(
-    getStoreStatus(businessInfo.schedule, businessInfo.isManualClosed)
-  );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  useEffect(() => {
-    const update = () =>
-      setStoreStatus(getStoreStatus(businessInfo.schedule, businessInfo.isManualClosed));
-    update();
-    const timer = setInterval(update, 60000);
-    return () => clearInterval(timer);
-  }, [businessInfo]);
+  // El estado llega calculado desde App (se actualiza solo cada 30 s)
+  const storeStatus = storeStatusProp || getStoreStatus(businessInfo.schedule, businessInfo.isManualClosed);
 
   const scrollToSection = (id) => {
     setMobileMenuOpen(false);
@@ -101,10 +94,15 @@ export default function HeaderNavbar({
             {/* Estado de la cocina en vivo */}
             <span
               className="hidden lg:inline-flex items-center gap-2 rounded-full border border-[#083821]/15 bg-[#e8e1d5]/40 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#083821]"
-              title={storeStatus.detailText}
+              title={storeStatus.isOpen ? storeStatus.badgeText : storeStatus.closedDetail || storeStatus.detailText}
             >
               <span className={`size-2 shrink-0 rounded-full ${storeStatus.dotColor}`} />
               {storeStatus.isOpen ? 'Abierto' : 'Cerrado'}
+              {!storeStatus.isOpen && storeStatus.closedDetail && (
+                <span className="normal-case tracking-normal font-medium text-[#083821]/60">
+                  · {storeStatus.closedDetail}
+                </span>
+              )}
             </span>
 
             {/* BOTÓN ADMIN / VER WEB */}

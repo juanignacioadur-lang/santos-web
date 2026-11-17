@@ -1,8 +1,8 @@
 // src/components/CustomizerModal.jsx
 import React, { useState, useEffect } from 'react';
 import { 
-  X, Plus, Minus, Check, MessageSquare, 
-  Flame, ShoppingBag 
+  X, Plus, Minus, Check, MessageSquare,
+  Flame, ShoppingBag, Clock
 } from 'lucide-react';
 import { AVAILABLE_TOPPINGS } from '../data/menu';
 
@@ -11,7 +11,9 @@ export default function CustomizerModal({
   product, 
   onClose, 
   onAddToCart,
-  availableToppings = AVAILABLE_TOPPINGS
+  availableToppings = AVAILABLE_TOPPINGS,
+  isStoreOpen = true,
+  closedDetail = ''
 }) {
   const [selectedToppings, setSelectedToppings] = useState([]);
   const [quantity, setQuantity] = useState(1);
@@ -70,6 +72,7 @@ export default function CustomizerModal({
       : (product.description || '');
 
   const handleConfirmOrder = () => {
+    if (!isStoreOpen) return;
     const customizedItem = {
       ...product,
       cartItemId: `${product.id}-${Date.now()}`,
@@ -245,7 +248,7 @@ export default function CustomizerModal({
 
               <button
                 type="button"
-                onClick={() => setQuantity(quantity + 1)}
+                onClick={() => setQuantity(Math.min(99, quantity + 1))}
                 className="w-9 h-9 rounded-xl bg-[#083821] hover:bg-[#052415] text-[#f5b82e] font-black flex items-center justify-center transition-all shadow-md active:scale-90"
               >
                 <Plus className="w-4 h-4" />
@@ -253,14 +256,29 @@ export default function CustomizerModal({
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleConfirmOrder}
-            className="w-full sm:flex-1 btn-santos-primary h-14 text-sm font-black flex items-center justify-center gap-3 rounded-[20px] shadow-xl hover:shadow-[#083821]/20 active:translate-y-0.5"
-          >
-            <ShoppingBag className="w-5 h-5" />
-            <span className="uppercase tracking-wide">Agregar • ${grandTotal.toLocaleString('es-AR')}</span>
-          </button>
+          {isStoreOpen ? (
+            <button
+              type="button"
+              onClick={handleConfirmOrder}
+              className="w-full sm:flex-1 btn-santos-primary h-14 text-sm font-black flex items-center justify-center gap-3 rounded-[20px] shadow-xl hover:shadow-[#083821]/20 active:translate-y-0.5"
+            >
+              <ShoppingBag className="w-5 h-5" />
+              <span className="uppercase tracking-wide">Agregar • ${grandTotal.toLocaleString('es-AR')}</span>
+            </button>
+          ) : (
+            <div
+              role="status"
+              className="w-full sm:flex-1 h-14 rounded-[20px] bg-[#083821] text-white flex flex-col items-center justify-center px-4 text-center cursor-not-allowed"
+            >
+              <span className="font-heading text-sm uppercase tracking-wide leading-none flex items-center gap-2">
+                <Clock className="w-4 h-4 text-[#f5b82e]" />
+                Local cerrado
+              </span>
+              {closedDetail && (
+                <span className="mt-1 text-[11px] font-semibold text-white/70 leading-none">{closedDetail}</span>
+              )}
+            </div>
+          )}
         </div>
 
       </div>

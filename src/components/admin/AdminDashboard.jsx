@@ -1,56 +1,109 @@
 // src/components/admin/AdminDashboard.jsx
-import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  Utensils, Settings, PlusCircle, Trash2, Lock, LogOut, 
-  CheckCircle, AlertCircle, Building2, Smartphone, 
-  Search, Edit3, X, Eye, Flame, KeyRound, 
-  PauseCircle, PlayCircle, CreditCard, Layers, ArrowUp, ArrowDown 
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import {
+  Utensils, Settings, PlusCircle, Trash2, Lock, LogOut,
+  CheckCircle, AlertCircle, Building2,
+  Search, Edit3, X, Eye, EyeOff, Flame, KeyRound,
+  PauseCircle, PlayCircle, CreditCard, Layers, ArrowUp, ArrowDown,
+  LayoutDashboard, ClipboardList, Bike, CopyPlus, LoaderCircle, Megaphone, ShieldCheck
 } from 'lucide-react';
-import { upsertMenuProduct, deleteMenuProduct, updateStoreSettings, isSupabaseConfigured } from '../../lib/supabase';
-import { DEFAULT_CATEGORIES, MENU_CATEGORIES, AVAILABLE_TOPPINGS } from '../../data/menu';
-import { BUSINESS_CONFIG } from '../../data/business';
+import {
+  upsertMenuProduct, deleteMenuProduct, reorderMenuProducts, updateStoreSettings, isSupabaseConfigured
+} from '../../lib/supabase';
+import {
+  adminLogin, adminLogout, adminRestoreSession, adminChangePassword, hasAdminSession, onAdminSessionExpired
+} from '../../lib/adminSession';
+import { DEFAULT_CATEGORIES, AVAILABLE_TOPPINGS } from '../../data/menu';
+import { BUSINESS_CONFIG, getStoreStatus } from '../../data/business';
+import { DEFAULT_STORE_CONFIG } from '../../lib/settings';
+import AdminOverview from './AdminOverview';
+import OrdersPanel from './OrdersPanel';
+import DeliveryPanel from './DeliveryPanel';
+import PaymentsPanel from './PaymentsPanel';
+import { formatDateTime } from './adminUi';
 
+const EMPTY_PRODUCT = {
+  title: '',
+  category: '',
+  price: '',
+  originalPrice: '',
+  badge: '',
+  tagline: '',
+  description: '',
+  ingredientsStr: '',
+  allowsToppings: true,
+  toppingsIds: [],
+  isOutOfStock: false,
+  image: ''
+};
 
-export default function AdminDashboard({ 
-  products = [], 
-  onRefreshProducts, 
-  bankingInfo = BUSINESS_CONFIG.banking, 
+export default function AdminDashboard({
+  products = [],
+  onRefreshProducts,
+  onProductsReordered = () => {},
+  bankingInfo = BUSINESS_CONFIG.banking,
   onUpdateBankingInfo,
   businessInfo = BUSINESS_CONFIG,
   onUpdateBusinessInfo,
-  categories = DEFAULT_CATEGORIES || MENU_CATEGORIES.filter(c => c.id !== 'todos'),
+  categories = DEFAULT_CATEGORIES,
   onUpdateCategories = () => {},
-  toppings = AVAILABLE_TOPPINGS, // <--- CAMBIAR AQUÍ
-  onUpdateToppings = () => {},   // <--- CAMBIAR AQUÍ
-  adminPassword = 'santos2026',
-  onUpdatePassword = () => {},
-  onExitAdmin 
+  toppings = AVAILABLE_TOPPINGS,
+  onUpdateToppings = () => {},
+  storeConfig = DEFAULT_STORE_CONFIG,
+  storeStatus = null,
+  onApplySettings = () => {},
+  onExitAdmin
 }) {
-  // Autenticación con memoria
-  const [rememberMe, setRememberMe] = useState(() => localStorage.getItem('santos_admin_remember') === 'true');
-  const [passwordInput, setPasswordInput] = useState(() => {
-    return localStorage.getItem('santos_admin_remember') === 'true' 
-      ? (localStorage.getItem('santos_admin_saved_pwd') || '') 
-      : '';
-  });
+  // Sesión del panel: la contraseña se valida en el servidor; acá solo queda un token que vence
+  const [rememberMe, setRememberMe] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => hasAdminSession());
+  const [loggingIn, setLoggingIn] = useState(false);
+  const [authError, setAuthError] = useState(null);
+  const [sessionNotice, setSessionNotice] = useState(null);
+  const [isDefaultPassword, setIsDefaultPassword] = useState(false);
+  const [mpSummary, setMpSummary] = useState(null);
 
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return localStorage.getItem('santos_admin_remember') === 'true' && 
-           localStorage.getItem('santos_admin_saved_pwd') === adminPassword;
-  });
+  // Cambio de contraseña
+  const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' });
+  const [showNewPasswords, setShowNewPasswords] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
 
-  const [authError, setAuthError] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-  const [activeTab, setActiveTab] = useState('menu'); // 'menu', 'categorias', 'extras', 'negocio', 'cobros', 'seguridad'
+  const [activeTab, setActiveTab] = useState('resumen');
   const [adminSearch, setAdminSearch] = useState('');
   const [statusMessage, setStatusMessage] = useState(null);
-  const [toppingsList, setToppingsList] = useState(toppings || AVAILABLE_TOPPINGS);
+  const [savingProduct, setSavingProduct] = useState(false);
+  const [savingBusiness, setSavingBusiness] = useState(false);
+  const statusTimer = useRef(null);
 
+  const currentStatus = storeStatus || getStoreStatus(businessInfo?.schedule, businessInfo?.isManualClosed);
+
+  // Al abrir el panel con una sesión guardada se confirma con el servidor que siga vigente
   useEffect(() => {
-    if (toppings && toppings.length > 0) {
-      setToppingsList(toppings);
-    }
-  }, [toppings]);
+    if (!hasAdminSession()) return;
+    let cancelled = false;
+    adminRestoreSession().then((res) => {
+      if (cancelled) return;
+      if (res.ok) {
+        setMpSummary(res.mp ?? null);
+      } else if (res.expired) {
+        setIsAuthenticated(false);
+        setSessionNotice('Tu sesión venció. Volvé a ingresar.');
+      } else if (res.error) {
+        setSessionNotice(res.error);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Si el servidor rechaza la sesión en medio de una acción, se vuelve al login
+  useEffect(() => onAdminSessionExpired(() => {
+    setIsAuthenticated(false);
+    setSessionNotice('Tu sesión venció o se cerró desde otro dispositivo. Volvé a ingresar.');
+  }), []);
 
   // Modal para editar producto existente
   const [editingProduct, setEditingProduct] = useState(null);
@@ -63,35 +116,22 @@ export default function AdminDashboard({
   const [toppingList, setToppingList] = useState(toppings);
   const [newTopping, setNewTopping] = useState({ name: '', price: '' });
 
-  // Configuración de Negocio (local, horarios y cierre manual)
-  const [businessForm, setBusinessForm] = useState(() => ({
-    name: businessInfo?.name || '',
-    address: businessInfo?.address || '',
-    instagram: businessInfo?.instagram || '',
-    deliveryTime: businessInfo?.deliveryTime || '',
-    takeawayTime: businessInfo?.takeawayTime || '',
-    schedule: businessInfo?.schedule || BUSINESS_CONFIG.schedule,
-    isManualClosed: Boolean(businessInfo?.isManualClosed)
-  }));
-
-  // Datos de cobro por transferencia
-  const [bankForm, setBankForm] = useState(() => ({ ...bankingInfo }));
+  // Configuración de Negocio (local, horarios, cierre manual y textos)
+  const buildBusinessForm = (info) => ({
+    name: info?.name || '',
+    address: info?.address || '',
+    instagram: info?.instagram || '',
+    deliveryTime: info?.deliveryTime || '',
+    takeawayTime: info?.takeawayTime || '',
+    schedule: info?.schedule || BUSINESS_CONFIG.schedule,
+    isManualClosed: Boolean(info?.isManualClosed),
+    closedMessage: info?.closedMessage || ''
+  });
+  const [businessForm, setBusinessForm] = useState(() => buildBusinessForm(businessInfo));
+  const [marqueeText, setMarqueeText] = useState(() => (storeConfig.marqueeItems || []).join('\n'));
 
   // Formulario nuevo producto
-  const [newProduct, setNewProduct] = useState({
-    title: '',
-    category: '',
-    price: '',
-    originalPrice: '',
-    badge: 'Firma de la casa',
-    tagline: '',
-    description: '',
-    ingredientsStr: '',
-    allowsToppings: true,
-    toppingsIds: [],
-    isOutOfStock: false,
-    image: ''
-  });
+  const [newProduct, setNewProduct] = useState(EMPTY_PRODUCT);
 
   // Último error de guardado en la nube (para avisar al usuario)
   const [cloudError, setCloudError] = useState(null);
@@ -103,30 +143,22 @@ export default function AdminDashboard({
   }, [categories]);
 
   useEffect(() => {
-    if (toppings && toppings.length > 0) {
+    if (Array.isArray(toppings)) {
       setToppingList(toppings);
     }
   }, [toppings]);
 
-  // Sincronizar datos del local y horarios cuando se actualicen
+  // Sincronizar datos del local y horarios solo cuando cambian de verdad
+  // (así una recarga automática no borra lo que se está editando)
+  const businessKey = JSON.stringify(businessInfo || {});
   useEffect(() => {
-    if (!businessInfo) return;
-    setBusinessForm({
-      name: businessInfo.name || '',
-      address: businessInfo.address || '',
-      instagram: businessInfo.instagram || '',
-      deliveryTime: businessInfo.deliveryTime || '',
-      takeawayTime: businessInfo.takeawayTime || '',
-      schedule: businessInfo.schedule || BUSINESS_CONFIG.schedule,
-      isManualClosed: Boolean(businessInfo.isManualClosed)
-    });
-  }, [businessInfo]);
+    setBusinessForm(buildBusinessForm(JSON.parse(businessKey)));
+  }, [businessKey]);
 
-  // Sincronizar datos bancarios
+  const marqueeKey = JSON.stringify(storeConfig.marqueeItems || []);
   useEffect(() => {
-    if (!bankingInfo) return;
-    setBankForm({ ...bankingInfo });
-  }, [bankingInfo]);
+    setMarqueeText(JSON.parse(marqueeKey).join('\n'));
+  }, [marqueeKey]);
 
   // Mantener siempre una categoría válida seleccionada en el formulario de alta
   useEffect(() => {
@@ -136,78 +168,104 @@ export default function AdminDashboard({
     );
   }, [categoryList]);
 
-  const showNotification = (text, isSuccess = true) => {
+  const showNotification = useCallback((text, isSuccess = true) => {
+    if (statusTimer.current) clearTimeout(statusTimer.current);
     setStatusMessage({ text, isSuccess });
-    setTimeout(() => setStatusMessage(null), 3500);
-  };
+    statusTimer.current = setTimeout(() => setStatusMessage(null), 3500);
+  }, []);
+
+  useEffect(() => () => {
+    if (statusTimer.current) clearTimeout(statusTimer.current);
+  }, []);
 
   // Centraliza el reporte de errores de guardado en la nube
-  const reportError = (error, context) => {
+  const reportError = useCallback((error, context) => {
     console.error(`[Admin Santos] Error guardando ${context}:`, error);
+    if (error?.code === 'UNAUTHORIZED') return true; // el login ya muestra el aviso
     setCloudError(error?.message || 'Error de conexión con la base de datos');
-    showNotification(`No se pudo guardar ${context}. Revisá la conexión con Supabase.`, false);
+    showNotification(`No se pudo guardar ${context}. ${error?.message || 'Revisá la conexión.'}`, false);
     return true;
-  };
+  }, [showNotification]);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    const storedPwd = localStorage.getItem('santos_admin_pwd') || adminPassword;
-    
-    // Acepta la clave activa actual o la guardada
-    if (passwordInput === adminPassword || passwordInput === storedPwd) {
-      setIsAuthenticated(true);
-      setAuthError(false);
-
-      if (rememberMe) {
-        localStorage.setItem('santos_admin_remember', 'true');
-        localStorage.setItem('santos_admin_saved_pwd', passwordInput);
-      } else {
-        localStorage.removeItem('santos_admin_remember');
-        localStorage.removeItem('santos_admin_saved_pwd');
-      }
-    } else {
-      setAuthError(true);
+    if (loggingIn) return;
+    if (!passwordInput) {
+      setAuthError('Escribí la contraseña.');
+      return;
     }
+    setLoggingIn(true);
+    setAuthError(null);
+    const res = await adminLogin(passwordInput, rememberMe);
+    setLoggingIn(false);
+
+    if (!res.ok) {
+      setAuthError(res.error || 'No se pudo iniciar sesión.');
+      return;
+    }
+
+    setPasswordInput('');
+    setSessionNotice(null);
+    setCloudError(null);
+    setIsDefaultPassword(Boolean(res.isDefaultPassword));
+    setMpSummary(res.mp ?? null);
+    setIsAuthenticated(true);
+    setActiveTab(res.isDefaultPassword ? 'seguridad' : 'resumen');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setIsAuthenticated(false);
-    localStorage.removeItem('santos_admin_remember');
-    localStorage.removeItem('santos_admin_saved_pwd');
     setPasswordInput('');
+    await adminLogout();
   };
 
   const filteredProducts = useMemo(() => {
-    const filtered = products.filter(p => 
-      (p.title || '').toLowerCase().includes(adminSearch.toLowerCase()) ||
-      (p.category || '').toLowerCase().includes(adminSearch.toLowerCase())
-    );
+    const term = adminSearch.trim().toLowerCase();
+    const indexed = products.map((p, i) => ({ p, i }));
+    const filtered = term
+      ? indexed.filter(({ p }) =>
+          (p.title || '').toLowerCase().includes(term) ||
+          (p.category || '').toLowerCase().includes(term)
+        )
+      : indexed;
 
-    // Ordenar por el orden definido en categoryList
+    // Ordenar por el orden de las secciones y, dentro de cada una, por el orden manual
     return [...filtered].sort((a, b) => {
-      const indexA = categoryList.findIndex(c => c.id === a.category);
-      const indexB = categoryList.findIndex(c => c.id === b.category);
-      
-      // Si no se encuentra la categoría, la mandamos al final
+      const indexA = categoryList.findIndex(c => c.id === a.p.category);
+      const indexB = categoryList.findIndex(c => c.id === b.p.category);
       const posA = indexA === -1 ? 999 : indexA;
       const posB = indexB === -1 ? 999 : indexB;
-      
       if (posA !== posB) return posA - posB;
-      
-      // Orden secundario alfabético por título
-      return (a.title || '').localeCompare(b.title || '');
-    });
+      return a.i - b.i;
+    }).map(({ p }) => p);
   }, [products, adminSearch, categoryList]);
 
   // ==========================================
   // GESTIÓN DE CATEGORÍAS
   // ==========================================
+  // Guarda la lista y, si falla, vuelve atrás para que el panel no muestre algo que no se guardó
+  const persistCategories = async (updated, previous, context, successMessage) => {
+    setCategoryList(updated);
+    onUpdateCategories(updated);
+    const { data, error } = await updateStoreSettings({ categories: updated });
+    if (error) {
+      setCategoryList(previous);
+      onUpdateCategories(previous);
+      reportError(error, context);
+      return false;
+    }
+    if (data) onApplySettings(data);
+    if (successMessage) showNotification(successMessage);
+    return true;
+  };
+
   const handleAddCategory = async (e) => {
     e.preventDefault();
-    if (!newCatName.trim()) return;
+    const label = newCatName.trim();
+    if (!label) return;
 
-    const slug = newCatName.trim().toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, "")
+    const slug = label.toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, "")
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)+/g, '');
 
@@ -218,23 +276,16 @@ export default function AdminDashboard({
       return;
     }
 
-    const updated = [...categoryList, { id: slug, label: newCatName.trim() }];
-    setCategoryList(updated);
     setNewCatName('');
-    onUpdateCategories(updated);
-    const { error } = await updateStoreSettings({ categories: updated });
-    if (error) return reportError(error, 'la sección');
-    showNotification(`¡Sección "${newCatName.trim()}" creada con éxito!`);
+    await persistCategories([...categoryList, { id: slug, label }], categoryList, 'la sección', `¡Sección "${label}" creada con éxito!`);
   };
 
   const handleRenameCategory = async (id, newLabel) => {
-    if (!newLabel.trim()) return;
-    const updated = categoryList.map(c => c.id === id ? { ...c, label: newLabel.trim() } : c);
-    setCategoryList(updated);
-    onUpdateCategories(updated);
-    const { error } = await updateStoreSettings({ categories: updated });
-    if (error) return reportError(error, 'el nombre de la sección');
-    showNotification("Sección renombrada.");
+    const label = newLabel.trim();
+    const current = categoryList.find(c => c.id === id);
+    if (!label || !current || current.label === label) return;
+    const updated = categoryList.map(c => c.id === id ? { ...c, label } : c);
+    await persistCategories(updated, categoryList, 'el nombre de la sección', 'Sección renombrada.');
   };
 
   const handleDeleteCategory = async (id, label) => {
@@ -253,22 +304,18 @@ export default function AdminDashboard({
       return;
     }
 
-    const updated = categoryList.filter(c => c.id !== id);
-    setCategoryList(updated);
-    onUpdateCategories(updated);
-
-    // Reasignamos los platos huérfanos para que no desaparezcan de la web
-    let moveError = null;
+    // Primero se mueven los platos para que nunca queden huérfanos en la web
     for (const product of orphans) {
-      const moved = { ...product, category: fallback.id };
-      const { error } = await upsertMenuProduct(moved);
-      if (error) moveError = error;
-      onRefreshProducts(moved);
+      const { data, error } = await upsertMenuProduct({ ...product, category: fallback.id });
+      if (error) {
+        reportError(error, 'el cambio de sección de los platos');
+        return;
+      }
+      onRefreshProducts(data);
     }
 
-    const { error } = await updateStoreSettings({ categories: updated });
-    if (error || moveError) return reportError(error || moveError, 'la eliminación de la sección');
-    showNotification(`Sección "${label}" eliminada.`);
+    const updated = categoryList.filter(c => c.id !== id);
+    await persistCategories(updated, categoryList, 'la eliminación de la sección', `Sección "${label}" eliminada.`);
   };
 
   const handleMoveCategory = async (index, direction) => {
@@ -277,54 +324,73 @@ export default function AdminDashboard({
     const updated = [...categoryList];
     const [moved] = updated.splice(index, 1);
     updated.splice(targetIndex, 0, moved);
-    setCategoryList(updated);
-    onUpdateCategories(updated);
-    const { error } = await updateStoreSettings({ categories: updated });
-    if (error) return reportError(error, 'el orden de las secciones');
+    await persistCategories(updated, categoryList, 'el orden de las secciones');
   };
 
   // ==========================================
   // GESTIÓN DE TOPPINGS / EXTRAS
   // ==========================================
+  const persistToppings = async (updated, previous, context, successMessage) => {
+    setToppingList(updated);
+    onUpdateToppings(updated);
+    const { data, error } = await updateStoreSettings({ toppings: updated });
+    if (error) {
+      setToppingList(previous);
+      onUpdateToppings(previous);
+      reportError(error, context);
+      return false;
+    }
+    if (data) onApplySettings(data);
+    if (successMessage) showNotification(successMessage);
+    return true;
+  };
+
   const handleAddTopping = async (e) => {
     e.preventDefault();
-    if (!newTopping.name.trim() || !newTopping.price) return;
+    const name = newTopping.name.trim();
+    const price = Number(newTopping.price);
+    if (!name || newTopping.price === '' || !Number.isFinite(price) || price < 0) return;
 
-    const id = newTopping.name.trim().toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, "")
+    const id = name.toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, "")
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)+/g, '');
+
+    if (!id) return;
 
     if (toppingList.some(t => t.id === id)) {
       alert("Ya existe un extra con ese nombre.");
       return;
     }
 
-    const updated = [...toppingList, { id, name: newTopping.name.trim(), price: Number(newTopping.price) }];
-    setToppingList(updated);
     setNewTopping({ name: '', price: '' });
-    onUpdateToppings(updated);
-    const { error } = await updateStoreSettings({ toppings: updated });
-    if (error) return reportError(error, 'el extra');
-    showNotification(`¡Extra "${newTopping.name.trim()}" creado!`);
+    await persistToppings([...toppingList, { id, name, price }], toppingList, 'el extra', `¡Extra "${name}" creado!`);
   };
 
   const handleUpdateTopping = async (id, field, value) => {
-    const updated = toppingList.map(t => t.id === id ? { ...t, [field]: field === 'price' ? Number(value) : value } : t);
-    setToppingList(updated);
-    onUpdateToppings(updated);
-    const { error } = await updateStoreSettings({ toppings: updated });
-    if (error) return reportError(error, 'el extra');
+    const current = toppingList.find(t => t.id === id);
+    if (!current) return;
+
+    let nextValue = value;
+    if (field === 'price') {
+      nextValue = Number(value);
+      if (value === '' || !Number.isFinite(nextValue) || nextValue < 0) return;
+    } else {
+      nextValue = String(value).trim();
+      if (!nextValue) return;
+    }
+    if (current[field] === nextValue) return;
+
+    const updated = toppingList.map(t => t.id === id ? { ...t, [field]: nextValue } : t);
+    await persistToppings(updated, toppingList, 'el extra', 'Extra actualizado.');
   };
 
   const handleDeleteTopping = async (id, name) => {
-    if (!confirm(`¿Eliminar el extra "${name}"?`)) return;
+    const usedBy = products.filter(p => (p.toppingsIds || []).map(String).includes(String(id))).length;
+    const warning = usedBy > 0 ? ` Está habilitado en ${usedBy} ${usedBy === 1 ? 'plato' : 'platos'}.` : '';
+    if (!confirm(`¿Eliminar el extra "${name}"?${warning}`)) return;
     const updated = toppingList.filter(t => t.id !== id);
-    setToppingList(updated);
-    onUpdateToppings(updated);
-    const { error } = await updateStoreSettings({ toppings: updated });
-    if (error) return reportError(error, 'la eliminación del extra');
-    showNotification(`Extra "${name}" eliminado.`);
+    await persistToppings(updated, toppingList, 'la eliminación del extra', `Extra "${name}" eliminado.`);
   };
 
   const handleMoveTopping = async (index, direction) => {
@@ -333,98 +399,127 @@ export default function AdminDashboard({
     const updated = [...toppingList];
     const [moved] = updated.splice(index, 1);
     updated.splice(targetIndex, 0, moved);
-    setToppingList(updated);
-    onUpdateToppings(updated);
-    const { error } = await updateStoreSettings({ toppings: updated });
-    if (error) return reportError(error, 'el orden de los extras');
+    await persistToppings(updated, toppingList, 'el orden de los extras');
   };
 
   // ==========================================
   // GESTIÓN DE PRODUCTOS
   // ==========================================
+  const parseIngredients = (text) =>
+    String(text || '').split(',').map(s => s.trim()).filter(Boolean);
+
   const handleCreateProduct = async (e) => {
     e.preventDefault();
-    if (!newProduct.title || !newProduct.price || !newProduct.image) {
+    if (savingProduct) return;
+    const price = Number(newProduct.price);
+    if (!newProduct.title.trim() || newProduct.price === '' || !Number.isFinite(price) || price < 0 || !newProduct.image.trim()) {
       alert("Completá al menos el nombre del plato, el precio y la foto.");
       return;
     }
 
-    const ingredients = newProduct.ingredientsStr 
-      ? newProduct.ingredientsStr.split(',').map(s => s.trim()).filter(Boolean)
-      : [];
-
+    const title = newProduct.title.trim();
     const productPayload = {
       id: `prod-${Date.now()}`,
-      title: newProduct.title.trim(),
+      title,
       category: newProduct.category || categoryList[0]?.id || 'favoritos',
-      price: Number(newProduct.price),
+      price,
       originalPrice: newProduct.originalPrice ? Number(newProduct.originalPrice) : null,
       badge: newProduct.badge.trim() || null,
-      tagline: newProduct.tagline.trim() || newProduct.title.trim(),
-      description: newProduct.description.trim() || newProduct.tagline.trim() || newProduct.title.trim(),
-      ingredients,
+      tagline: newProduct.tagline.trim() || title,
+      description: newProduct.description.trim() || newProduct.tagline.trim() || title,
+      ingredients: parseIngredients(newProduct.ingredientsStr),
       allowsToppings: Boolean(newProduct.allowsToppings),
       toppingsIds: newProduct.toppingsIds || [],
       isOutOfStock: Boolean(newProduct.isOutOfStock),
       image: newProduct.image.trim()
     };
 
-    const { error } = await upsertMenuProduct(productPayload);
-    if (error) {
-      reportError(error, 'el producto en la nube (quedó guardado solo en este dispositivo)');
-    } else {
-      showNotification("¡Producto publicado en el menú de Santos!");
-    }
-    onRefreshProducts(productPayload);
+    setSavingProduct(true);
+    const { data, error } = await upsertMenuProduct(productPayload);
+    setSavingProduct(false);
+    if (error) return reportError(error, 'el producto');
 
-    setNewProduct({
-      title: '',
-      category: categoryList[0]?.id || '',
-      price: '',
-      originalPrice: '',
-      badge: 'Firma de la casa',
-      tagline: '',
-      description: '',
-      ingredientsStr: '',
-      allowsToppings: true,
-      toppingsIds: [],
-      isOutOfStock: false,
-      image: ''
-    });
+    onRefreshProducts(data);
+    showNotification("¡Producto publicado en el menú de Santos!");
+    setNewProduct({ ...EMPTY_PRODUCT, category: productPayload.category });
   };
 
   const handleUpdateProduct = async (e) => {
     e.preventDefault();
-    if (!editingProduct) return;
+    if (!editingProduct || savingProduct) return;
+
+    const price = Number(editingProduct.price);
+    if (!Number.isFinite(price) || price < 0) {
+      alert("Revisá el precio.");
+      return;
+    }
 
     const ingredients = typeof editingProduct.ingredientsStr === 'string'
-      ? editingProduct.ingredientsStr.split(',').map(s => s.trim()).filter(Boolean)
+      ? parseIngredients(editingProduct.ingredientsStr)
       : editingProduct.ingredients;
 
     const updatedPayload = {
       ...editingProduct,
-      price: Number(editingProduct.price),
+      title: String(editingProduct.title || '').trim(),
+      badge: String(editingProduct.badge || '').trim() || null,
+      price,
       originalPrice: editingProduct.originalPrice ? Number(editingProduct.originalPrice) : null,
       ingredients
     };
 
-    const { error } = await upsertMenuProduct(updatedPayload);
+    setSavingProduct(true);
+    const { data, error } = await upsertMenuProduct(updatedPayload);
+    setSavingProduct(false);
     if (error) return reportError(error, 'el producto');
-    onRefreshProducts(updatedPayload);
+    onRefreshProducts(data);
     setEditingProduct(null);
     showNotification("¡Producto actualizado con éxito!");
   };
 
   const handleToggleStock = async (product) => {
     const updated = { ...product, isOutOfStock: !product.isOutOfStock };
-    const { error } = await upsertMenuProduct(updated);
+    const { data, error } = await upsertMenuProduct(updated);
     if (error) return reportError(error, 'el stock del producto');
-    onRefreshProducts(updated);
+    onRefreshProducts(data);
     showNotification(
-      updated.isOutOfStock 
-        ? `"${product.title}" pausada (Sin stock en cocina)` 
+      updated.isOutOfStock
+        ? `"${product.title}" pausada (Sin stock en cocina)`
         : `"${product.title}" reactivada para la venta`
     );
+  };
+
+  const handleDuplicateProduct = async (product) => {
+    const copy = {
+      ...product,
+      id: `prod-${Date.now()}`,
+      title: `${product.title} (copia)`,
+      isOutOfStock: true
+    };
+    const { data, error } = await upsertMenuProduct(copy);
+    if (error) return reportError(error, 'la copia del producto');
+    onRefreshProducts(data);
+    showNotification(`Copia creada (pausada). Editala y reactivala cuando esté lista.`);
+  };
+
+  // Sube o baja un plato dentro de su sección
+  const handleMoveProduct = async (product, direction) => {
+    const siblings = products.filter(p => p.category === product.category);
+    const index = siblings.findIndex(p => p.id === product.id);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= siblings.length) return;
+
+    const reordered = [...siblings];
+    const [moved] = reordered.splice(index, 1);
+    reordered.splice(target, 0, moved);
+    const ids = reordered.map(p => p.id);
+    const previousIds = siblings.map(p => p.id);
+
+    onProductsReordered(ids);
+    const { error } = await reorderMenuProducts(ids);
+    if (error) {
+      onProductsReordered(previousIds);
+      reportError(error, 'el orden de los platos');
+    }
   };
 
   const handleDeleteProduct = async (id, title) => {
@@ -439,83 +534,99 @@ export default function AdminDashboard({
   // ==========================================
   // CONFIGURACIONES Y SEGURIDAD
   // ==========================================
-  const handleSaveBanking = async (e) => {
-    e.preventDefault();
-    const { error } = await updateStoreSettings({
-      titular: bankForm.titular,
-      bank_name: bankForm.bankName,
-      alias: bankForm.alias,
-      cvu: bankForm.cvu,
-      whatsapp: bankForm.whatsappKitchen
-    });
-    onUpdateBankingInfo(bankForm);
-    if (error) return reportError(error, 'los datos de cobro en la nube');
-    showNotification("¡Datos de cobro actualizados para toda la web!");
-  };
-
   const handleChangePassword = async (e) => {
     e.preventDefault();
-    const cleanPwd = newPassword.trim();
-    if (cleanPwd.length < 4) {
-      alert("La clave debe tener al menos 4 caracteres.");
+    if (changingPassword) return;
+    const next = passwordForm.next;
+
+    if (next.length < 8) {
+      showNotification('La contraseña nueva debe tener al menos 8 caracteres.', false);
+      return;
+    }
+    if (next !== passwordForm.confirm) {
+      showNotification('Las contraseñas nuevas no coinciden.', false);
+      return;
+    }
+    if (next === passwordForm.current) {
+      showNotification('La contraseña nueva tiene que ser distinta de la actual.', false);
       return;
     }
 
-    // 1. Guardar localmente (funciona siempre, incluso sin conexión)
-    localStorage.setItem('santos_admin_pwd', cleanPwd);
+    setChangingPassword(true);
+    const res = await adminChangePassword(passwordForm.current, next);
+    setChangingPassword(false);
 
-    if (rememberMe) {
-      localStorage.setItem('santos_admin_saved_pwd', cleanPwd);
-      setPasswordInput(cleanPwd);
+    if (!res.ok) {
+      showNotification(res.error, false);
+      return;
     }
 
-    // 2. Guardar en Supabase y notificar
-    const { error } = await updateStoreSettings({ admin_password: cleanPwd });
-    onUpdatePassword(cleanPwd);
-    setNewPassword('');
-
-    if (error) return reportError(error, 'la contraseña en la nube (quedó activa en este dispositivo)');
-    showNotification(`¡Contraseña cambiada con éxito a: "${cleanPwd}"!`);
+    setPasswordForm({ current: '', next: '', confirm: '' });
+    setIsDefaultPassword(false);
+    showNotification('¡Contraseña cambiada! Se cerraron las sesiones de los otros dispositivos.');
   };
 
-  // GUARDAR AJUSTES DE NEGOCIO (LOCAL, DIRECCIÓN, INSTAGRAM)
+  // Abre / cierra el local desde el Resumen
+  const handleToggleManualClosed = async (closed) => {
+    const { data, error } = await updateStoreSettings({ is_manual_closed: closed });
+    if (error) {
+      reportError(error, 'el estado del local');
+      return;
+    }
+    onApplySettings(data);
+    showNotification(closed ? 'Local cerrado: la web ya no toma pedidos.' : 'Local abierto según el horario.');
+  };
+
+  // GUARDAR AJUSTES DE NEGOCIO (LOCAL, DIRECCIÓN, INSTAGRAM, HORARIOS)
   const handleSaveBusiness = async (e) => {
     e.preventDefault();
+    if (savingBusiness) return;
+
+    // Validar que cada turno tenga apertura y cierre
+    for (const [day, slot] of Object.entries(businessForm.schedule || {})) {
+      if (!slot) continue;
+      const label = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"][day];
+      if (!slot.open || !slot.close) {
+        showNotification(`Completá el horario de apertura y cierre del ${label}.`, false);
+        return;
+      }
+      if (Boolean(slot.open2) !== Boolean(slot.close2)) {
+        showNotification(`El segundo turno del ${label} necesita apertura y cierre (o limpialo).`, false);
+        return;
+      }
+    }
 
     // Extraer ciudad automáticamente si la dirección tiene comas
     const parts = businessForm.address.split(',');
-    const city = parts.length > 1 ? parts.slice(1).join(',').trim() : (businessForm.city || 'Villa Carlos Paz, Córdoba');
+    const city = parts.length > 1 ? parts.slice(1).join(',').trim() : (businessInfo.city || BUSINESS_CONFIG.city);
+
+    const marqueeItems = marqueeText
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(0, 20);
 
     const updatedData = {
-      name: businessForm.name,
-      address: businessForm.address,
-      city: city,
-      instagram: businessForm.instagram,
-      delivery_time: businessForm.deliveryTime,
-      takeaway_time: businessForm.takeawayTime,
+      name: businessForm.name.trim(),
+      address: businessForm.address.trim(),
+      city,
+      instagram: businessForm.instagram.trim(),
+      delivery_time: businessForm.deliveryTime.trim(),
+      takeaway_time: businessForm.takeawayTime.trim(),
       schedule: businessForm.schedule,
-      is_manual_closed: businessForm.isManualClosed
+      is_manual_closed: businessForm.isManualClosed,
+      closed_message: businessForm.closedMessage.trim(),
+      marquee_items: marqueeItems
     };
 
-    // 1. Guardar en memoria local inmediata
-    try {
-      const current = JSON.parse(localStorage.getItem('santos_store_settings') || '{}');
-      localStorage.setItem('santos_store_settings', JSON.stringify({ ...current, ...updatedData, id: 1 }));
-    } catch {}
+    setSavingBusiness(true);
+    const { data, error } = await updateStoreSettings(updatedData);
+    setSavingBusiness(false);
 
-    // 2. Notificar inmediatamente a App.jsx para que el Footer cambie ya mismo
-    onUpdateBusinessInfo({
-      ...businessForm,
-      city: city
-    });
-
-    // 3. Guardar en Supabase
-    const res = await updateStoreSettings(updatedData);
-    if (res && res.error) {
-      showNotification("Guardado local (aviso Supabase: " + res.error.message + ")", false);
-    } else {
-      showNotification("¡Información del local y horarios guardada con éxito!");
-    }
+    if (error) return reportError(error, 'la información del local');
+    onApplySettings(data);
+    onUpdateBusinessInfo?.((prev) => ({ ...prev }));
+    showNotification("¡Información del local y horarios guardada con éxito!");
   };
 
   const handleScheduleChange = (day, field, value) => {
@@ -546,7 +657,7 @@ export default function AdminDashboard({
     return (
       <div className="min-h-[80vh] flex items-center justify-center px-4 py-12 bg-[#f2eee2] select-none text-left">
         <div className="max-w-md w-full bg-[#fbf9f3] border-2 border-[#083821]/20 p-8 sm:p-10 rounded-3xl shadow-xl text-center">
-          
+
           <div className="w-16 h-16 rounded-2xl bg-[#083821] text-[#eb623a] flex items-center justify-center mx-auto mb-4 border-2 border-[#eb623a] shadow-md">
             <Lock className="w-8 h-8" />
           </div>
@@ -555,49 +666,70 @@ export default function AdminDashboard({
             Cocina & Administración
           </h2>
           <p className="text-xs text-zinc-600 font-medium mt-1 mb-6">
-            Acceso exclusivo Santos Smash Burgers
+            Acceso exclusivo {businessInfo?.name || 'Santos'}
           </p>
+
+          {sessionNotice && (
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-300 text-amber-900 text-xs rounded-xl flex items-center gap-2 text-left">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{sessionNotice}</span>
+            </div>
+          )}
 
           <form onSubmit={handleLogin} className="space-y-4 text-left">
             <div>
-              <label className="text-xs font-bold text-zinc-700 block mb-1.5 flex items-center gap-1.5">
+              <label htmlFor="santos-admin-password" className="text-xs font-bold text-zinc-700 mb-1.5 flex items-center gap-1.5">
                 <KeyRound className="w-3.5 h-3.5 text-[#083821]" />
                 <span>Contraseña Maestra</span>
               </label>
-              <input 
-                type="password"
-                placeholder="Clave"
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                className="w-full bg-[#f2eee2] border-2 border-zinc-200 focus:border-[#083821] rounded-xl px-4 py-3 text-sm text-[#083821] focus:outline-none transition-all font-mono"
-              />
+              <div className="relative">
+                <input
+                  id="santos-admin-password"
+                  type={showLoginPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  placeholder="Clave"
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  className="w-full bg-[#f2eee2] border-2 border-zinc-200 focus:border-[#083821] rounded-xl px-4 py-3 pr-11 text-sm text-[#083821] focus:outline-none transition-all font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPassword(!showLoginPassword)}
+                  aria-label={showLoginPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 text-zinc-500 hover:text-[#083821] cursor-pointer"
+                >
+                  {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center gap-2 pt-1 pb-1">
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 id="rememberSantosAdmin"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
                 className="w-4 h-4 rounded border-2 border-zinc-300 accent-[#083821] cursor-pointer"
               />
               <label htmlFor="rememberSantosAdmin" className="text-xs text-zinc-600 font-medium cursor-pointer select-none">
-                Recordar mi contraseña en este dispositivo
+                Mantener la sesión iniciada en este dispositivo (30 días)
               </label>
             </div>
 
             {authError && (
-              <div className="p-3 bg-red-100 border border-red-300 text-red-700 text-xs rounded-xl flex items-center gap-2">
+              <div role="alert" className="p-3 bg-red-100 border border-red-300 text-red-700 text-xs rounded-xl flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>Contraseña incorrecta.</span>
+                <span>{authError}</span>
               </div>
             )}
 
             <button
               type="submit"
-              className="w-full bg-[#083821] hover:bg-[#042415] text-[#eb623a] font-heading py-3.5 rounded-xl uppercase tracking-wider text-xs transition-all shadow-md active:scale-98 cursor-pointer font-bold"
+              disabled={loggingIn}
+              className="w-full bg-[#083821] hover:bg-[#042415] text-[#eb623a] font-heading py-3.5 rounded-xl uppercase tracking-wider text-xs transition-all shadow-md active:scale-98 cursor-pointer font-bold disabled:opacity-60 inline-flex items-center justify-center gap-2"
             >
-              Ingresar al Panel
+              {loggingIn && <LoaderCircle className="w-4 h-4 animate-spin" />}
+              {loggingIn ? 'Verificando…' : 'Ingresar al Panel'}
             </button>
           </form>
 
@@ -612,40 +744,59 @@ export default function AdminDashboard({
     );
   }
 
+  const tabs = [
+    { id: 'resumen', label: 'Resumen', icon: LayoutDashboard },
+    { id: 'pedidos', label: 'Pedidos', icon: ClipboardList },
+    { id: 'menu', label: 'Gestor del Menú', icon: Utensils, count: products.length },
+    { id: 'categorias', label: 'Secciones / Categorías', icon: Layers, count: categoryList.length },
+    { id: 'extras', label: 'Extras / Toppings', icon: PlusCircle, count: toppingList.length },
+    { id: 'negocio', label: 'Horarios y Local', icon: Building2 },
+    { id: 'envios', label: 'Envíos', icon: Bike },
+    { id: 'cobros', label: 'Pagos', icon: CreditCard },
+    { id: 'seguridad', label: 'Seguridad', icon: Settings }
+  ];
+
   // =========================================================================
   // VISTA 2: DASHBOARD PRINCIPAL ACTIVO
   // =========================================================================
   return (
     <div className="max-w-6xl mx-auto px-5 sm:px-8 pt-4 pb-12 w-full text-left select-none text-[#083821]">
-      
+
       {/* Toast Notificación Flotante */}
       {statusMessage && (
-        <div className={`fixed bottom-6 left-6 z-[120] p-4 rounded-2xl border-2 text-xs font-bold flex items-center gap-2 shadow-2xl animate-bounce ${
-          statusMessage.isSuccess 
-            ? 'bg-[#083821] text-[#eb623a] border-[#eb623a]' 
+        <div role="status" aria-live="polite" className={`fixed bottom-6 left-6 right-6 sm:right-auto sm:max-w-md z-[120] p-4 rounded-2xl border-2 text-xs font-bold flex items-center gap-2 shadow-2xl animate-toastIn ${
+          statusMessage.isSuccess
+            ? 'bg-[#083821] text-[#eb623a] border-[#eb623a]'
             : 'bg-red-800 text-white border-red-500'
         }`}>
-          {statusMessage.isSuccess ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+          {statusMessage.isSuccess ? <CheckCircle className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
           <span>{statusMessage.text}</span>
         </div>
       )}
 
       {/* AVISO DE ESTADO DE LA BASE DE DATOS EN LA NUBE */}
-      {(!isSupabaseConfigured || cloudError) && (
+      {(!isSupabaseConfigured || cloudError || sessionNotice) && (
         <div className="mb-6 rounded-2xl border-2 border-amber-400 bg-amber-50 p-4 text-xs text-amber-900 flex items-start gap-3">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-          <div className="space-y-1 text-left">
+          <div className="space-y-1 text-left flex-1">
             <strong className="block font-black uppercase tracking-wide">
-              {isSupabaseConfigured
-                ? 'Hubo un problema al guardar en la nube'
-                : 'Modo local (sin conexión a Supabase)'}
+              {!isSupabaseConfigured
+                ? 'Modo local (sin conexión a Supabase)'
+                : cloudError
+                  ? 'Hubo un problema al guardar en la nube'
+                  : 'Aviso de conexión'}
             </strong>
             <p className="font-medium">
-              {isSupabaseConfigured
-                ? `Detalle: ${cloudError}. Revisá las políticas (RLS) y la estructura de las tablas en el panel de Supabase.`
-                : 'Los cambios se guardan solo en este navegador. Configurá VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en el archivo .env y ejecutá el script SQL en Supabase para activar el guardado en la nube.'}
+              {!isSupabaseConfigured
+                ? 'Los cambios se guardan solo en este navegador. Configurá VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY y ejecutá supabase_setup.sql en Supabase para activar el guardado en la nube.'
+                : cloudError || sessionNotice}
             </p>
           </div>
+          {cloudError && (
+            <button type="button" onClick={() => setCloudError(null)} aria-label="Cerrar aviso" className="p-1 rounded-lg hover:bg-amber-100 cursor-pointer">
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
       )}
 
@@ -659,8 +810,9 @@ export default function AdminDashboard({
           <h2 className="font-heading text-2xl sm:text-4xl uppercase text-[#083821] mt-0.5">
             Panel de Operaciones Santos
           </h2>
-          <p className="text-xs text-zinc-500 font-medium">
-            Gestioná el menú en tiempo real, pausá stock y actualizá secciones y horarios
+          <p className="text-xs text-zinc-500 font-medium flex items-center gap-1.5">
+            <span className={`size-2 rounded-full ${currentStatus.dotColor}`} />
+            {currentStatus.isOpen ? `Local abierto · ${currentStatus.badgeText.replace('Abierto - ', '')}` : `Local cerrado · ${currentStatus.closedDetail}`}
           </p>
         </div>
 
@@ -684,21 +836,20 @@ export default function AdminDashboard({
       </div>
 
       {/* PESTAÑAS DE NAVEGACIÓN */}
-      <div className="flex gap-2 mb-6 border-b-2 border-zinc-200 pb-3 overflow-x-auto">
-        {[
-          { id: 'menu', label: 'Gestor del Menú', icon: Utensils, count: products.length },
-          { id: 'categorias', label: 'Secciones / Categorías', icon: Layers, count: categoryList.length },
-          { id: 'extras', label: 'Extras / Toppings', icon: PlusCircle, count: toppingList.length },
-          { id: 'negocio', label: 'Horarios y Local', icon: Building2 },
-          { id: 'cobros', label: 'Datos de Cobro', icon: CreditCard },
-          { id: 'seguridad', label: 'Seguridad', icon: Settings }
-        ].map(tab => {
+      <div className="flex gap-2 mb-6 border-b-2 border-zinc-200 pb-3 overflow-x-auto" role="tablist" aria-label="Secciones del panel">
+        {tabs.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              role="tab"
+              aria-selected={isActive}
+              onClick={(e) => {
+                setActiveTab(tab.id);
+                // En celular la barra de pestañas se desliza para dejar visible la elegida
+                e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+              }}
               className={`px-4 py-2.5 rounded-xl text-xs font-heading uppercase tracking-wider flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer ${
                 isActive
                   ? 'bg-[#083821] text-[#eb623a] shadow-md'
@@ -712,10 +863,50 @@ export default function AdminDashboard({
                   {tab.count}
                 </span>
               )}
+              {tab.id === 'seguridad' && isDefaultPassword && (
+                <span className="size-2 rounded-full bg-red-500" aria-label="Requiere atención" />
+              )}
             </button>
           );
         })}
       </div>
+
+      {/* ========================================================= */}
+      {/* PESTAÑA: RESUMEN                                          */}
+      {/* ========================================================= */}
+      {activeTab === 'resumen' && (
+        <AdminOverview
+          storeStatus={currentStatus}
+          businessInfo={businessInfo}
+          storeConfig={storeConfig}
+          bankingInfo={bankingInfo}
+          mpSummary={mpSummary}
+          isDefaultPassword={isDefaultPassword}
+          products={products}
+          onToggleManualClosed={handleToggleManualClosed}
+          onGoTo={setActiveTab}
+        />
+      )}
+
+      {/* ========================================================= */}
+      {/* PESTAÑA: PEDIDOS                                          */}
+      {/* ========================================================= */}
+      {activeTab === 'pedidos' && (
+        <OrdersPanel storeName={businessInfo?.name} notify={showNotification} />
+      )}
+
+      {/* ========================================================= */}
+      {/* PESTAÑA: ENVÍOS                                           */}
+      {/* ========================================================= */}
+      {activeTab === 'envios' && (
+        <DeliveryPanel
+          storeConfig={storeConfig}
+          businessInfo={businessInfo}
+          onApplySettings={onApplySettings}
+          notify={showNotification}
+          reportError={reportError}
+        />
+      )}
 
       {/* ========================================================= */}
       {/* PESTAÑA: SECCIONES Y CATEGORÍAS (DINÁMICAS)               */}
@@ -829,7 +1020,7 @@ export default function AdminDashboard({
               <input 
                 required
                 type="text"
-                placeholder="Nombre del extra (ej: Medallón Smash Extra)"
+                placeholder="Nombre del extra (ej: Medallón Extra)"
                 value={newTopping.name}
                 onChange={(e) => setNewTopping({ ...newTopping, name: e.target.value })}
                 className="flex-[2] bg-[#f2eee2] border border-zinc-300 rounded-xl px-4 py-2.5 text-xs text-[#083821] focus:outline-none focus:border-[#083821]"
@@ -1009,7 +1200,7 @@ export default function AdminDashboard({
                 <label className="font-bold text-zinc-700 block mb-1">Descripción Breve</label>
                 <input 
                   type="text"
-                  placeholder="Doble medallón smash, cheddar y salsa especial..."
+                  placeholder="Doble medallón, cheddar y salsa especial..."
                   value={newProduct.tagline}
                   onChange={(e) => setNewProduct({ ...newProduct, tagline: e.target.value })}
                   className="w-full bg-[#f2eee2] border border-zinc-300 rounded-xl p-2.5 text-xs text-[#083821] focus:outline-none focus:border-[#083821]"
@@ -1148,8 +1339,8 @@ export default function AdminDashboard({
                     </div>
                     
                     <div className="space-y-2.5">
-                      {categoryProducts.map(p => (
-                        <div 
+                      {categoryProducts.map((p, productIndex) => (
+                        <div
                           key={p.id}
                           className={`bg-[#fbf9f3] p-4 rounded-2xl border-2 transition-all flex items-center justify-between gap-4 ${
                             p.isOutOfStock ? 'border-red-300 bg-red-50/50 opacity-80' : 'border-zinc-200 shadow-sm'
@@ -1187,6 +1378,31 @@ export default function AdminDashboard({
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0">
+                            {!adminSearch.trim() && (
+                              <div className="flex flex-col gap-0.5" aria-label="Orden en el menú">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveProduct(p, -1)}
+                                  disabled={productIndex === 0}
+                                  title="Subir en el menú"
+                                  aria-label={`Subir ${p.title}`}
+                                  className="p-1 rounded-md bg-card border border-zinc-200 text-zinc-700 hover:bg-zinc-100 disabled:opacity-30 cursor-pointer"
+                                >
+                                  <ArrowUp className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveProduct(p, 1)}
+                                  disabled={productIndex === categoryProducts.length - 1}
+                                  title="Bajar en el menú"
+                                  aria-label={`Bajar ${p.title}`}
+                                  className="p-1 rounded-md bg-card border border-zinc-200 text-zinc-700 hover:bg-zinc-100 disabled:opacity-30 cursor-pointer"
+                                >
+                                  <ArrowDown className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            )}
+
                             <button
                               type="button"
                               onClick={() => handleToggleStock(p)}
@@ -1205,14 +1421,28 @@ export default function AdminDashboard({
                               type="button"
                               onClick={() => setEditingProduct({ ...p, ingredientsStr: Array.isArray(p.ingredients) ? p.ingredients.join(', ') : '' })}
                               className="p-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl transition-colors cursor-pointer"
+                              title="Editar plato"
+                              aria-label={`Editar ${p.title}`}
                             >
                               <Edit3 className="w-4 h-4 text-[#083821]" />
                             </button>
 
                             <button
                               type="button"
+                              onClick={() => handleDuplicateProduct(p)}
+                              className="p-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl transition-colors cursor-pointer"
+                              title="Duplicar plato"
+                              aria-label={`Duplicar ${p.title}`}
+                            >
+                              <CopyPlus className="w-4 h-4 text-[#083821]" />
+                            </button>
+
+                            <button
+                              type="button"
                               onClick={() => handleDeleteProduct(p.id, p.title)}
                               className="p-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors cursor-pointer"
+                              title="Eliminar plato"
+                              aria-label={`Eliminar ${p.title}`}
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -1297,14 +1527,28 @@ export default function AdminDashboard({
                               type="button"
                               onClick={() => setEditingProduct({ ...p, ingredientsStr: Array.isArray(p.ingredients) ? p.ingredients.join(', ') : '' })}
                               className="p-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl transition-colors cursor-pointer"
+                              title="Editar plato"
+                              aria-label={`Editar ${p.title}`}
                             >
                               <Edit3 className="w-4 h-4 text-[#083821]" />
                             </button>
 
                             <button
                               type="button"
+                              onClick={() => handleDuplicateProduct(p)}
+                              className="p-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl transition-colors cursor-pointer"
+                              title="Duplicar plato"
+                              aria-label={`Duplicar ${p.title}`}
+                            >
+                              <CopyPlus className="w-4 h-4 text-[#083821]" />
+                            </button>
+
+                            <button
+                              type="button"
                               onClick={() => handleDeleteProduct(p.id, p.title)}
                               className="p-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors cursor-pointer"
+                              title="Eliminar plato"
+                              aria-label={`Eliminar ${p.title}`}
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -1536,10 +1780,47 @@ export default function AdminDashboard({
                 />
                 <div>
                   <span className="font-heading text-red-700 block text-sm">Cerrar Local Manualmente</span>
-                  <span className="text-[10px] text-red-500 font-medium">Usa esto para emergencias o feriados. Anula los horarios normales.</span>
+                  <span className="text-[10px] text-red-500 font-medium">Usa esto para emergencias o feriados. Anula los horarios normales y bloquea los pedidos.</span>
                 </div>
               </label>
+
+              <div className="mt-4 text-xs">
+                <label htmlFor="closed-message" className="font-bold text-zinc-700 block mb-1">
+                  Mensaje cuando el local está cerrado manualmente <span className="font-medium text-zinc-400">(opcional)</span>
+                </label>
+                <input
+                  id="closed-message"
+                  type="text"
+                  maxLength={160}
+                  placeholder="Ej: Cerrado por feriado, volvemos el martes a las 19:45 hs"
+                  value={businessForm.closedMessage}
+                  onChange={e => setBusinessForm({ ...businessForm, closedMessage: e.target.value })}
+                  className="w-full bg-[#f2eee2] border border-zinc-300 rounded-xl p-2.5 text-[#083821]"
+                />
+                <p className="mt-1 text-[10px] text-zinc-400 font-medium">
+                  Si lo dejás vacío se muestra la próxima apertura según el horario (ej: "Abrimos hoy a las 19:45 hs").
+                </p>
+              </div>
             </div>
+          </div>
+
+          <div className="bg-[#fbf9f3] border-2 border-[#083821]/15 p-8 rounded-3xl shadow-md space-y-6">
+            <div className="border-b border-zinc-200 pb-3">
+              <h3 className="font-heading text-lg uppercase text-[#083821] flex items-center gap-2">
+                <Megaphone className="w-5 h-5 text-[#eb623a]" />
+                <span>Textos de la Cinta</span>
+              </h3>
+              <p className="text-xs text-zinc-500 font-medium mt-1">
+                Las frases que pasan en la cinta inclinada debajo del inicio. Una por renglón (máximo 20). Vacío = textos de siempre.
+              </p>
+            </div>
+            <textarea
+              rows={5}
+              value={marqueeText}
+              onChange={(e) => setMarqueeText(e.target.value)}
+              placeholder={'CALIDAD 100% SANTOS\nBURGERS ARTESANALES\nPAPAS FRITAS BIEN CALIENTES'}
+              className="w-full bg-[#f2eee2] border border-zinc-300 rounded-xl p-3 text-xs text-[#083821] font-mono uppercase focus:outline-none focus:border-[#083821]"
+            />
           </div>
 
           <div className="bg-[#fbf9f3] border-2 border-[#083821]/15 p-8 rounded-3xl shadow-md space-y-6">
@@ -1641,11 +1922,17 @@ export default function AdminDashboard({
               })}
             </div>
 
+            <p className="text-[11px] text-zinc-500 font-medium">
+              Los horarios usan la hora de Córdoba. Si un turno cierra después de medianoche (ej: 20:00 a 01:30) se toma como parte del mismo día.
+            </p>
+
             <div className="pt-4 flex justify-end">
               <button
                 type="submit"
-                className="bg-[#083821] hover:bg-[#042415] text-[#eb623a] font-heading text-xs uppercase tracking-wider py-3.5 px-10 rounded-2xl shadow-md transition-all active:scale-98 cursor-pointer font-bold"
+                disabled={savingBusiness}
+                className="bg-[#083821] hover:bg-[#042415] text-[#eb623a] font-heading text-xs uppercase tracking-wider py-3.5 px-10 rounded-2xl shadow-md transition-all active:scale-98 cursor-pointer font-bold disabled:opacity-60 inline-flex items-center justify-center gap-2"
               >
+                {savingBusiness && <LoaderCircle className="w-4 h-4 animate-spin" />}
                 Guardar Horarios y Local
               </button>
             </div>
@@ -1654,54 +1941,19 @@ export default function AdminDashboard({
       )}
 
       {/* ========================================================= */}
-      {/* PESTAÑA 3: COBROS                                         */}
+      {/* PESTAÑA 3: PAGOS (MEDIOS, MERCADO PAGO Y TRANSFERENCIA)   */}
       {/* ========================================================= */}
       {activeTab === 'cobros' && (
-        <form onSubmit={handleSaveBanking} className="space-y-6">
-          <div className="bg-[#fbf9f3] border-2 border-[#083821]/15 p-8 rounded-3xl shadow-md space-y-4">
-          <div className="border-b border-zinc-200 pb-3">
-            <h3 className="font-heading text-lg uppercase text-[#083821] flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-[#eb623a]" />
-              <span>Datos para Cobrar por Transferencia</span>
-            </h3>
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-zinc-700 block mb-1">Titular</label>
-            <input required type="text" value={bankForm.titular} onChange={e => setBankForm({ ...bankForm, titular: e.target.value })} className="w-full bg-[#f2eee2] border border-zinc-300 rounded-xl p-2.5 text-xs text-[#083821]" />
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-zinc-700 block mb-1">Banco / Billetera</label>
-            <input required type="text" value={bankForm.bankName} onChange={e => setBankForm({ ...bankForm, bankName: e.target.value })} className="w-full bg-[#f2eee2] border border-zinc-300 rounded-xl p-2.5 text-xs text-[#083821]" />
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-zinc-700 block mb-1">Alias Oficial</label>
-            <input required type="text" value={bankForm.alias} onChange={e => setBankForm({ ...bankForm, alias: e.target.value })} className="w-full bg-[#f2eee2] border border-zinc-300 rounded-xl p-2.5 text-xs text-[#083821] font-mono font-black" />
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-zinc-700 block mb-1">CVU / CBU (22 dígitos)</label>
-            <input required type="text" value={bankForm.cvu} onChange={e => setBankForm({ ...bankForm, cvu: e.target.value })} className="w-full bg-[#f2eee2] border border-zinc-300 rounded-xl p-2.5 text-xs text-zinc-700 font-mono" />
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-zinc-700 block mb-1 flex items-center gap-1.5">
-              <Smartphone className="w-4 h-4 text-[#25D366]" />
-              <span>WhatsApp de Cocina para Comandas</span>
-            </label>
-            <input required type="text" value={bankForm.whatsappKitchen} onChange={e => setBankForm({ ...bankForm, whatsappKitchen: e.target.value })} className="w-full bg-[#f2eee2] border border-zinc-300 rounded-xl p-2.5 text-xs text-[#083821] font-mono" />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full bg-[#083821] hover:bg-[#042415] text-[#eb623a] font-heading text-xs uppercase tracking-wider py-3.5 rounded-2xl shadow-md transition-all active:scale-98 cursor-pointer font-bold"
-          >
-            Guardar Datos de Cobro
-          </button>
-          </div>
-        </form>
+        <PaymentsPanel
+          storeConfig={storeConfig}
+          bankingInfo={bankingInfo}
+          mpSummary={mpSummary}
+          onMpSummaryChange={setMpSummary}
+          onApplySettings={onApplySettings}
+          onUpdateBankingInfo={onUpdateBankingInfo}
+          notify={showNotification}
+          reportError={reportError}
+        />
       )}
 
       {/* ========================================================= */}
@@ -1716,56 +1968,115 @@ export default function AdminDashboard({
               <span>Seguridad & Clave Maestra</span>
             </h3>
             <p className="text-xs text-zinc-500 font-medium mt-1">
-              Podés cambiar la contraseña de acceso al panel de administración.
+              La contraseña se guarda cifrada en el servidor: nadie la puede ver, ni siquiera desde este panel.
             </p>
           </div>
 
-          {/* Tarjeta de Clave Activa Actual */}
-          <div className="p-4 bg-[#f2eee2] border-2 border-[#083821]/20 rounded-2xl flex items-center justify-between">
-            <div>
-              <span className="text-[10px] font-black uppercase text-zinc-500 block">
-                Contraseña Activa en este momento:
+          {isDefaultPassword && (
+            <div className="p-4 bg-red-50 border-2 border-red-200 rounded-2xl text-xs text-red-800 flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span className="font-medium">
+                <strong className="font-black">Estás usando la contraseña por defecto.</strong> Cualquiera que la conozca puede entrar al panel. Cambiala ahora.
               </span>
-              <strong className="font-mono text-base text-[#083821]">
-                {adminPassword}
-              </strong>
             </div>
-            <span className="text-[10px] bg-emerald-100 text-emerald-800 font-black px-2.5 py-1 rounded-full uppercase">
-              Activa
-            </span>
-          </div>
+          )}
 
           <form onSubmit={handleChangePassword} className="space-y-4 text-xs">
             <div>
-              <label className="font-bold text-zinc-700 block mb-1">
-                Escribí la Nueva Contraseña
-              </label>
-              <input 
+              <label htmlFor="pwd-current" className="font-bold text-zinc-700 block mb-1">Contraseña actual</label>
+              <input
+                id="pwd-current"
                 required
-                type="text"
-                placeholder="Ej: santos2027, miclave123..."
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full bg-[#f2eee2] border border-zinc-300 focus:border-[#083821] rounded-xl p-3 text-xs text-[#083821] font-mono font-bold focus:outline-none"
+                type={showNewPasswords ? 'text' : 'password'}
+                autoComplete="current-password"
+                value={passwordForm.current}
+                onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })}
+                className="w-full bg-[#f2eee2] border border-zinc-300 focus:border-[#083821] rounded-xl p-3 text-xs text-[#083821] font-mono focus:outline-none"
               />
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="pwd-new" className="font-bold text-zinc-700 block mb-1">
+                  Nueva contraseña <span className="font-medium text-zinc-400">(mínimo 8 caracteres)</span>
+                </label>
+                <input
+                  id="pwd-new"
+                  required
+                  minLength={8}
+                  maxLength={72}
+                  type={showNewPasswords ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  value={passwordForm.next}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, next: e.target.value })}
+                  className="w-full bg-[#f2eee2] border border-zinc-300 focus:border-[#083821] rounded-xl p-3 text-xs text-[#083821] font-mono focus:outline-none"
+                />
+              </div>
+              <div>
+                <label htmlFor="pwd-confirm" className="font-bold text-zinc-700 block mb-1">Repetí la nueva contraseña</label>
+                <input
+                  id="pwd-confirm"
+                  required
+                  minLength={8}
+                  maxLength={72}
+                  type={showNewPasswords ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  value={passwordForm.confirm}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })}
+                  className="w-full bg-[#f2eee2] border border-zinc-300 focus:border-[#083821] rounded-xl p-3 text-xs text-[#083821] font-mono focus:outline-none"
+                />
+                {passwordForm.confirm && passwordForm.confirm !== passwordForm.next && (
+                  <p className="mt-1 text-[11px] font-bold text-red-600">No coincide con la nueva contraseña.</p>
+                )}
+              </div>
+            </div>
+
+            <label className="inline-flex items-center gap-2 cursor-pointer text-zinc-600 font-medium">
+              <input
+                type="checkbox"
+                checked={showNewPasswords}
+                onChange={(e) => setShowNewPasswords(e.target.checked)}
+                className="w-4 h-4 accent-[#083821]"
+              />
+              Mostrar lo que escribo
+            </label>
+
             <button
               type="submit"
-              className="w-full bg-[#083821] hover:bg-[#042415] text-[#eb623a] font-heading text-xs uppercase tracking-wider py-3.5 rounded-2xl shadow-md transition-all cursor-pointer font-bold active:scale-98"
+              disabled={changingPassword}
+              className="w-full bg-[#083821] hover:bg-[#042415] text-[#eb623a] font-heading text-xs uppercase tracking-wider py-3.5 rounded-2xl shadow-md transition-all cursor-pointer font-bold active:scale-98 disabled:opacity-60 inline-flex items-center justify-center gap-2"
             >
+              {changingPassword && <LoaderCircle className="w-4 h-4 animate-spin" />}
               Guardar Nueva Contraseña
             </button>
           </form>
 
-          {/* Botón rápido para cerrar sesión y probar la clave nueva */}
+          <div className="p-4 bg-[#f2eee2] border border-zinc-200 rounded-2xl text-xs text-zinc-600 space-y-1.5">
+            <p className="font-bold text-[#083821] flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4" /> Cómo se protege el panel
+            </p>
+            <p>• Al cambiar la contraseña se cierran las sesiones abiertas en otros dispositivos.</p>
+            <p>• Después de 8 intentos fallidos el ingreso se bloquea 15 minutos.</p>
+            <p>• La sesión dura 12 horas, o 30 días si marcaste "mantener la sesión iniciada".</p>
+            {hasAdminSession() && (() => {
+              try {
+                const raw = localStorage.getItem('santos_admin_session') || sessionStorage.getItem('santos_admin_session');
+                const expires = raw ? JSON.parse(raw).expiresAt : null;
+                return expires ? <p>• Esta sesión vence el {formatDateTime(expires)}.</p> : null;
+              } catch {
+                return null;
+              }
+            })()}
+          </div>
+
+          {/* Cerrar sesión */}
           <div className="pt-2 border-t border-zinc-200 text-center">
             <button
               type="button"
               onClick={handleLogout}
               className="text-xs text-zinc-500 hover:text-red-600 font-bold underline transition-colors cursor-pointer"
             >
-              Cerrar sesión ahora para probar la nueva clave
+              Cerrar sesión en este dispositivo
             </button>
           </div>
           </div>

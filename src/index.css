@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ==========================================================================
-   SANTOS SMASH BURGERS — SISTEMA DE DISEÑO
+   SANTOS BURGERS — SISTEMA DE DISEÑO
    Paleta: verde profundo #083821 · amarillo dorado #f5b82e · crema #f2eee2 · arena #e8e1d5
    ========================================================================== */
 
@@ -688,7 +688,7 @@
   /* ========================================================================
      3. PESTAÑA "GESTOR DEL MENÚ": CHECKBOXES DE EXTRAS Y TARJETAS DE PLATOS
      ======================================================================== */
-  /* En móvil, pasar la lista de checkboxes de extras a 1 sola columna para leer el nombre entero ("Medallón Smash Extra (100g)") */
+  /* En móvil, pasar la lista de checkboxes de extras a 1 sola columna para leer el nombre entero ("Medallón Extra (100g)") */
   main .grid.grid-cols-2.sm\:grid-cols-3.gap-2,
   .fixed .grid.grid-cols-2.sm\:grid-cols-3.gap-2 {
     grid-template-columns: 1fr !important;
@@ -717,13 +717,13 @@
   }
 
   /* Mostrar la palabra "Pausar / Reactivar" también en móvil para que sea fácil de tocar */
-  main .bg-\[\#fbf9f3\].p-4.rounded-2xl.border-2.flex.items-center.justify-between.gap-4 > .flex.items-center.gap-2.shrink-0 > button:first-child {
+  main .bg-\[\#fbf9f3\].p-4.rounded-2xl.border-2.flex.items-center.justify-between.gap-4 > .flex.items-center.gap-2.shrink-0 > button:first-of-type {
     flex: 1 !important;
     justify-content: center !important;
     padding: 0.5rem 0.75rem !important;
   }
 
-  main .bg-\[\#fbf9f3\].p-4.rounded-2xl.border-2.flex.items-center.justify-between.gap-4 > .flex.items-center.gap-2.shrink-0 > button:first-child > span.hidden {
+  main .bg-\[\#fbf9f3\].p-4.rounded-2xl.border-2.flex.items-center.justify-between.gap-4 > .flex.items-center.gap-2.shrink-0 > button:first-of-type > span.hidden {
     display: inline !important;
   }
 

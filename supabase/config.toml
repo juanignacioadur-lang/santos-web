@@ -1,0 +1,7 @@
+# Configuración de la Edge Function para quien la publique con la CLI de Supabase
+# (supabase functions deploy mercadopago). Desde el panel web no hace falta este archivo.
+
+[functions.mercadopago]
+# Mercado Pago llama al aviso de pagos sin credenciales de Supabase:
+# la verificación de JWT tiene que estar desactivada.
+verify_jwt = false
