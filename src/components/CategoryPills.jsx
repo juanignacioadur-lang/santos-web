@@ -33,9 +33,14 @@ export default function CategoryPills({ selectedCategory, onSelectCategory, cate
     }
   };
 
-  // Selecciona la categoría, centra la píldora tocada y deja bien visible el título de la sección
+  // Selecciona la categoría y solo hace scroll automático en móviles/tablets (en PC no mueve la pantalla)
   const handlePillClick = (catId, e) => {
     onSelectCategory(catId);
+
+    // En PC (pantallas de 1024px o más) solo cambia la categoría sin mover el scroll
+    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+      return;
+    }
 
     // 1. Centrar la píldora tocada dentro de la barra horizontal en móviles
     if (e?.currentTarget && scrollRef.current) {
@@ -46,11 +51,11 @@ export default function CategoryPills({ selectedCategory, onSelectCategory, cate
       });
     }
 
-    // 2. Desplazar la pantalla un poco más arriba para que se vea la barra de píldoras + el título grande (LOMITERÍA, PIZZERÍA, etc.)
+    // 2. Desplazar la pantalla en móviles para ver el título de la sección
     setTimeout(() => {
       const menuEl = document.getElementById('menu-section');
       if (menuEl) {
-        const yOffset = -95; // Más arriba: deja visible las píldoras y todo el título de la sección
+        const yOffset = -95;
         const y = menuEl.getBoundingClientRect().top + window.pageYOffset + yOffset;
         window.scrollTo({ top: y, behavior: 'smooth' });
       }

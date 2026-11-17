@@ -1,5 +1,5 @@
 -- =========================================================================
--- SANTOS · Script de configuración de Supabase (versión 3)
+-- SANTOS · Script de configuración de Supabase (versión 3.1)
 --
 -- CÓMO USARLO
 --   Supabase → SQL Editor → New query → pegá TODO este archivo → Run.
@@ -91,6 +91,56 @@ alter table public.santos_settings add column if not exists payment_methods  jso
   default '{"transfer": true, "mercadopago": false, "cash": false}'::jsonb;
 alter table public.santos_settings add column if not exists marquee_items    jsonb;
 alter table public.santos_settings add column if not exists site_url         text;
+
+-- Columnas que ya existían de pruebas anteriores con OTRO tipo de dato.
+-- Si no se corrigen, guardar cualquier ajuste falla con
+-- "CASE types text[] and jsonb cannot be matched".
+do $$
+declare
+  r record;
+begin
+  for r in
+    select column_name, data_type
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'santos_settings'
+      and (
+        (column_name in ('schedule', 'categories', 'toppings', 'delivery_zones', 'marquee_items', 'payment_methods') and data_type <> 'jsonb')
+        or (column_name = 'min_order' and data_type not in ('numeric', 'integer', 'bigint', 'smallint', 'real', 'double precision'))
+        or (column_name in ('delivery_enabled', 'takeaway_enabled', 'is_manual_closed') and data_type <> 'boolean')
+        or (column_name in ('closed_message', 'site_url') and data_type not in ('text', 'character varying'))
+      )
+  loop
+    execute format('alter table public.santos_settings alter column %I drop default', r.column_name);
+
+    if r.column_name = 'marquee_items' then
+      -- Textos viejos que la web nunca mostró (nombres del menú anterior):
+      -- se descartan para que la cinta siga mostrando los textos de siempre.
+      execute 'alter table public.santos_settings alter column marquee_items type jsonb using null';
+    elsif r.column_name in ('schedule', 'categories', 'toppings', 'delivery_zones', 'payment_methods') then
+      if r.data_type = 'ARRAY' then
+        execute format('alter table public.santos_settings alter column %I type jsonb using to_jsonb(%I)', r.column_name, r.column_name);
+      else
+        execute format('alter table public.santos_settings alter column %I type jsonb using nullif(%I::text, '''')::jsonb', r.column_name, r.column_name);
+      end if;
+    elsif r.column_name = 'min_order' then
+      execute 'alter table public.santos_settings alter column min_order type numeric using coalesce(nullif(regexp_replace(min_order::text, ''[^0-9.]'', '''', ''g''), '''')::numeric, 0)';
+    elsif r.column_name in ('delivery_enabled', 'takeaway_enabled', 'is_manual_closed') then
+      execute format('alter table public.santos_settings alter column %I type boolean using (lower(%I::text) in (''true'', ''t'', ''1'', ''si'', ''sí''))', r.column_name, r.column_name);
+    else
+      execute format('alter table public.santos_settings alter column %I type text using %I::text', r.column_name, r.column_name);
+    end if;
+  end loop;
+end $$;
+
+-- Valores por defecto (por si la columna se convirtió arriba)
+alter table public.santos_settings alter column payment_methods
+  set default '{"transfer": true, "mercadopago": false, "cash": false}'::jsonb;
+alter table public.santos_settings alter column toppings set default '[]'::jsonb;
+alter table public.santos_settings alter column min_order set default 0;
+alter table public.santos_settings alter column delivery_enabled set default true;
+alter table public.santos_settings alter column takeaway_enabled set default true;
+alter table public.santos_settings alter column is_manual_closed set default false;
 
 -- -------------------------------------------------------------------------
 -- 3. TABLAS PRIVADAS (nadie las puede leer desde la web)

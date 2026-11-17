@@ -24,6 +24,12 @@ const MP_API = 'https://api.mercadopago.com';
 const FUNCTION_NAME = 'mercadopago';
 const MP_TIMEOUT_MS = 15000;
 
+// Declaración mínima para entornos locales que no cargan los tipos globales de Deno.
+declare const Deno: {
+  env: { get(name: string): string | undefined };
+  serve(handler: (request: Request) => Response | Promise<Response>): void;
+};
+
 type Json = Record<string, any>;
 
 // -------------------------------------------------------------------------
@@ -600,4 +606,6 @@ async function handler(req: Request): Promise<Response> {
   }
 }
 
+// Supabase proporciona Deno en el runtime de Edge Functions.
+// @ts-ignore - El entorno local puede no tener cargados los tipos de Deno.
 Deno.serve(handler);
