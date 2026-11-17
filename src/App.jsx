@@ -501,10 +501,10 @@ export default function App() {
             {/* PATRÓN DOODLE DISPERSO EN EL FONDO */}
             <div className="santos-food-pattern pointer-events-none absolute inset-0 z-0 opacity-40" aria-hidden="true" />
 
-            <div className="mx-auto max-w-6xl px-5 sm:px-8 pt-2 sm:pt-4 pb-14">
+            <div className="mx-auto max-w-6xl px-5 sm:px-8 pt-2 sm:pt-4 pb-0 sm:pb-14">
 
-              {/* Píldoras de Categorías Dinámicas (Sticky en Móvil) */}
-              <div className="sticky top-0 z-[35] -mx-5 px-5 py-2.5 bg-[#083821]/95 backdrop-blur-md sm:static sm:bg-transparent sm:backdrop-blur-none sm:mx-0 sm:px-0 sm:py-0 border-b border-white/10 sm:border-none transition-all">
+              {/* Píldoras de Categorías Dinámicas (Sticky en Móvil hasta chocar con la línea de Cómo Funciona) */}
+              <div className="sticky top-0 z-[35] -mx-5 px-5 py-2 bg-[#083821]/95 backdrop-blur-md sm:static sm:bg-transparent sm:backdrop-blur-none sm:mx-0 sm:px-0 sm:py-0 border-b border-white/10 sm:border-none transition-all">
                 <CategoryPills
                   selectedCategory={selectedCategory}
                   onSelectCategory={setSelectedCategory}
@@ -512,7 +512,7 @@ export default function App() {
                 />
               </div>
 
-              <section id="menu-section" className="mt-8 space-y-12 scroll-mt-20" aria-busy={!isCatalogReady}>
+              <section id="menu-section" className="mt-8 pb-14 sm:pb-0 space-y-12 scroll-mt-20" aria-busy={!isCatalogReady}>
                 {!isCatalogReady ? (
                   <MenuSkeleton />
                 ) : catalogError && sortedProducts.length === 0 ? (

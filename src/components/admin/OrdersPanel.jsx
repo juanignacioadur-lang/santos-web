@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ClipboardList, Search, RefreshCw, LoaderCircle, Bike, Store, Phone, MessageCircle,
   ChefHat, CircleCheck, Ban, Trash2, Wallet, StickyNote, Bell, BellRing, TriangleAlert, Inbox, MapPin,
-  UtensilsCrossed, FileSpreadsheet, PlusCircle
+  UtensilsCrossed, FileSpreadsheet, PlusCircle, Edit3, Check, X
 } from 'lucide-react';
 import {
   adminListOrders, adminUpdateOrder, adminDeleteOrder, adminExportOrders, mpAdminVerify, isSupabaseConfigured
@@ -173,6 +173,17 @@ function customerMessage(order, kind, storeName) {
 
 function OrderCard({ order, storeName, busy, onUpdate, onDelete, onVerifyMp, isFresh }) {
   const [notes, setNotes] = useState(order.admin_notes || '');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    customer_name: order.customer_name || '',
+    customer_phone: order.customer_phone || '',
+    address: order.address || '',
+    order_type: order.order_type || 'takeaway',
+    payment_method: order.payment_method || 'efectivo',
+    status: order.status || 'nuevo',
+    total: String(order.total ?? 0)
+  });
+
   const status = ORDER_STATUS[order.status] || ORDER_STATUS.nuevo;
   const payment = PAYMENT_STATUS[order.payment_status] || PAYMENT_STATUS.pendiente;
   const isDelivery = order.order_type === 'delivery';
@@ -182,6 +193,20 @@ function OrderCard({ order, storeName, busy, onUpdate, onDelete, onVerifyMp, isF
   useEffect(() => {
     setNotes(order.admin_notes || '');
   }, [order.admin_notes]);
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    await onUpdate(order, {
+      customer_name: editForm.customer_name.trim() || 'Cliente',
+      customer_phone: editForm.customer_phone.trim(),
+      address: editForm.order_type === 'delivery' ? editForm.address.trim() : null,
+      order_type: editForm.order_type,
+      payment_method: editForm.payment_method,
+      status: editForm.status,
+      total: Math.max(0, Number(editForm.total) || 0)
+    });
+    setIsEditing(false);
+  };
 
   const next = {
     pendiente: { status: 'nuevo', label: 'Confirmar pedido', icon: CircleCheck },
@@ -222,6 +247,117 @@ function OrderCard({ order, storeName, busy, onUpdate, onDelete, onVerifyMp, isF
           </p>
         </div>
       </div>
+
+      {/* PANEL DESPLEGABLE DE EDICIÓN RÁPIDA */}
+      {isEditing && (
+        <form onSubmit={handleSaveEdit} className="mt-3 rounded-2xl border-2 border-[#083821] bg-[#f2eee2] p-3.5 space-y-3 text-xs">
+          <div className="flex items-center justify-between border-b border-zinc-300 pb-2">
+            <strong className="font-heading uppercase text-sm text-[#083821]">Editar Pedido #{order.code}</strong>
+            <button type="button" onClick={() => setIsEditing(false)} className="p-1 text-zinc-500 hover:text-black cursor-pointer">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div>
+              <label className="font-bold text-zinc-700 block mb-1">Cliente</label>
+              <input
+                type="text"
+                value={editForm.customer_name}
+                onChange={(e) => setEditForm({ ...editForm, customer_name: e.target.value })}
+                className={`${inputClass} bg-white`}
+              />
+            </div>
+            <div>
+              <label className="font-bold text-zinc-700 block mb-1">Teléfono</label>
+              <input
+                type="text"
+                value={editForm.customer_phone}
+                onChange={(e) => setEditForm({ ...editForm, customer_phone: e.target.value })}
+                className={`${inputClass} bg-white font-mono`}
+              />
+            </div>
+            <div>
+              <label className="font-bold text-zinc-700 block mb-1">Estado del pedido</label>
+              <select
+                value={editForm.status}
+                onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                className={`${inputClass} bg-white font-bold`}
+              >
+                <option value="nuevo">Nuevo</option>
+                <option value="preparando">En preparación</option>
+                <option value="listo">Listo</option>
+                <option value="entregado">Entregado</option>
+                <option value="cancelado">Cancelado</option>
+              </select>
+            </div>
+            <div>
+              <label className="font-bold text-zinc-700 block mb-1">Medio de pago</label>
+              <select
+                value={editForm.payment_method}
+                onChange={(e) => setEditForm({ ...editForm, payment_method: e.target.value })}
+                className={`${inputClass} bg-white font-bold`}
+              >
+                <option value="efectivo">Efectivo</option>
+                <option value="transferencia">Transferencia</option>
+                <option value="mercadopago">Mercado Pago</option>
+                <option value="tarjeta">Tarjeta (posnet)</option>
+              </select>
+            </div>
+            <div>
+              <label className="font-bold text-zinc-700 block mb-1">Modalidad</label>
+              <select
+                value={editForm.order_type}
+                onChange={(e) => setEditForm({ ...editForm, order_type: e.target.value })}
+                className={`${inputClass} bg-white font-bold`}
+              >
+                <option value="takeaway">Retira en el local</option>
+                <option value="mesa">Consume en el local</option>
+                <option value="delivery">Envío a domicilio</option>
+              </select>
+            </div>
+            <div>
+              <label className="font-bold text-zinc-700 block mb-1">Total ($ ARS)</label>
+              <input
+                type="number"
+                min="0"
+                value={editForm.total}
+                onChange={(e) => setEditForm({ ...editForm, total: e.target.value })}
+                className={`${inputClass} bg-white font-mono font-bold`}
+              />
+            </div>
+            {editForm.order_type === 'delivery' && (
+              <div className="sm:col-span-2">
+                <label className="font-bold text-zinc-700 block mb-1">Dirección de entrega</label>
+                <input
+                  type="text"
+                  value={editForm.address}
+                  onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                  className={`${inputClass} bg-white`}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => setIsEditing(false)}
+              className="rounded-xl border border-zinc-300 bg-white px-3.5 py-2 text-xs font-bold text-zinc-600 cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#083821] px-4 py-2 text-xs font-heading uppercase tracking-wider text-[#f5b82e] cursor-pointer"
+            >
+              <Check className="w-3.5 h-3.5" />
+              Guardar cambios
+            </button>
+          </div>
+        </form>
+      )}
 
       {/* Cliente y entrega */}
       <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
@@ -349,19 +485,32 @@ function OrderCard({ order, storeName, busy, onUpdate, onDelete, onVerifyMp, isF
         )}
 
         {order.customer_phone && (
-        <a
-          href={whatsappUrl(order.customer_phone, customerMessage(order, notifyKind || (order.payment_status !== 'aprobado' ? 'pago' : 'hola'), storeName))}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-xl bg-[#25D366]/15 px-3 py-2 text-xs font-bold text-[#128C4B] hover:bg-[#25D366]/25"
-          title="Escribirle al cliente por WhatsApp"
-        >
-          <MessageCircle className="w-4 h-4" />
-          {notifyKind === 'preparando' ? 'Avisar: en preparación' : notifyKind === 'listo' ? (isDelivery ? 'Avisar: salió' : 'Avisar: listo') : 'WhatsApp'}
-        </a>
+          <a
+            href={whatsappUrl(order.customer_phone, customerMessage(order, notifyKind || (order.payment_status !== 'aprobado' ? 'pago' : 'hola'), storeName))}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-[#25D366]/15 px-3 py-2 text-xs font-bold text-[#128C4B] hover:bg-[#25D366]/25"
+            title="Escribirle al cliente por WhatsApp"
+          >
+            <MessageCircle className="w-4 h-4" />
+            {notifyKind === 'preparando' ? 'Avisar: en preparación' : notifyKind === 'listo' ? (isDelivery ? 'Avisar: salió' : 'Avisar: listo') : 'WhatsApp'}
+          </a>
         )}
 
+        {/* BOTONES DE EDITAR, CANCELAR Y ELIMINAR (SIEMPRE DISPONIBLES) */}
         <div className="ml-auto flex items-center gap-1.5">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => setIsEditing(!isEditing)}
+            title="Editar datos del pedido"
+            aria-label={`Editar pedido ${order.code}`}
+            className="inline-flex items-center gap-1 rounded-xl bg-zinc-100 hover:bg-zinc-200 px-2.5 py-2 text-xs font-bold text-[#083821] cursor-pointer disabled:opacity-60"
+          >
+            <Edit3 className="w-3.5 h-3.5" />
+            <span>Editar</span>
+          </button>
+
           {order.status !== 'cancelado' && order.status !== 'entregado' && (
             <button
               type="button"
@@ -374,17 +523,17 @@ function OrderCard({ order, storeName, busy, onUpdate, onDelete, onVerifyMp, isF
               <Ban className="w-4 h-4" /> Cancelar
             </button>
           )}
-          {(order.status === 'cancelado' || order.status === 'pendiente') && (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => onDelete(order)}
-              aria-label={`Eliminar pedido ${order.code}`}
-              className="p-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer disabled:opacity-60"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
+
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onDelete(order)}
+            title="Eliminar pedido definitivamente"
+            aria-label={`Eliminar pedido ${order.code}`}
+            className="p-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer disabled:opacity-60"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </article>
@@ -392,7 +541,7 @@ function OrderCard({ order, storeName, busy, onUpdate, onDelete, onVerifyMp, isF
 }
 
 export default function OrdersPanel({ storeName, notify, onNewOrder }) {
-  const [statusFilter, setStatusFilter] = useState('activos');
+  const [statusFilter, setStatusFilter] = useState('todos');
   const [range, setRange] = useState('hoy');
   const [sourceFilter, setSourceFilter] = useState('todos');
   const [searchInput, setSearchInput] = useState('');
