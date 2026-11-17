@@ -307,7 +307,7 @@ export function adminGetStats(days = 30) {
 // =========================================================================
 const FUNCTION_ERRORS = {
   FUNCTION_MISSING: 'La función de Mercado Pago todavía no está publicada en Supabase.',
-  FUNCTION_JWT: 'La función de Mercado Pago tiene activado "Verify JWT". Desactivalo en Supabase → Edge Functions → mercadopago → Settings.',
+  FUNCTION_JWT: 'La función de Mercado Pago tiene activada la verificación JWT. Desactivá "Verify JWT with legacy secret" en Supabase → Edge Functions → mercadopago.',
 };
 
 async function invokeMercadoPago(body, { timeoutMs = 25000 } = {}) {

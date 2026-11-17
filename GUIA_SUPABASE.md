@@ -50,8 +50,8 @@ Se puede ejecutar más de una vez sin problema. Corre en una transacción: si al
 3. Borrá el código de ejemplo, pegá **todo** el contenido de
    [`supabase/functions/mercadopago/index.ts`](supabase/functions/mercadopago/index.ts)
    y tocá **Deploy function**.
-4. Entrá a la función → pestaña **Details / Settings** → **desactivá "Verify JWT"**
-   (en algunas versiones del panel dice "Enforce JWT verification") → **Save**.
+4. Entrá a la función → **Function configuration** → **desactivá "Verify JWT with legacy secret"**
+   → **Save changes**.
    *Es obligatorio:* Mercado Pago avisa los pagos sin credenciales de Supabase.
 
 ### Opción B: con la CLI
