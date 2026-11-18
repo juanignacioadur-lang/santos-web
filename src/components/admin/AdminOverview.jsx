@@ -34,7 +34,7 @@ function DailyChart({ daily }) {
   const active = hover !== null ? daily[hover] : null;
 
   return (
-    <div>
+    <div className="relative">
       <div className="h-6 text-[11px] font-bold text-[#083821]">
         {active ? (
           <span>
@@ -84,17 +84,21 @@ function DailyChart({ daily }) {
         <span className="font-bold text-[#083821]">Hoy</span>
       </div>
 
-      <table className="sr-only">
-        <caption>Ventas por día</caption>
-        <thead>
-          <tr><th>Día</th><th>Pedidos</th><th>Ventas</th></tr>
-        </thead>
-        <tbody>
-          {daily.map((d) => (
-            <tr key={d.day}><td>{d.day}</td><td>{d.orders}</td><td>{money(d.revenue)}</td></tr>
-          ))}
-        </tbody>
-      </table>
+      {/* Tabla solo para lectores de pantalla: va dentro de un div oculto porque una tabla
+          no respeta el alto de 1 px de sr-only y estiraba la página hacia abajo */}
+      <div className="sr-only">
+        <table>
+          <caption>Ventas por día</caption>
+          <thead>
+            <tr><th>Día</th><th>Pedidos</th><th>Ventas</th></tr>
+          </thead>
+          <tbody>
+            {daily.map((d) => (
+              <tr key={d.day}><td>{d.day}</td><td>{d.orders}</td><td>{money(d.revenue)}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
