@@ -133,6 +133,12 @@ begin
   end loop;
 end $$;
 
+-- Columnas que tienen que poder quedar vacías (por si alguna quedó como obligatoria)
+alter table public.santos_settings alter column marquee_items  drop not null;
+alter table public.santos_settings alter column closed_message drop not null;
+alter table public.santos_settings alter column site_url       drop not null;
+alter table public.santos_settings alter column delivery_zones drop not null;
+
 -- Valores por defecto (por si la columna se convirtió arriba)
 alter table public.santos_settings alter column payment_methods
   set default '{"transfer": true, "mercadopago": false, "cash": false}'::jsonb;
@@ -238,7 +244,7 @@ create index if not exists santos_orders_source_idx on public.santos_orders (sou
 -- 4. FILA INICIAL DE AJUSTES + VALORES POR DEFECTO DE LAS COLUMNAS NUEVAS
 -- -------------------------------------------------------------------------
 insert into public.santos_settings (id, schedule, categories, toppings)
-values (
+select
   1,
   '{
     "0": {"open": "19:45", "close": "23:30", "label": "Domingo"},
@@ -267,8 +273,7 @@ values (
     {"id": "salsa-santos",     "name": "Dip Extra de Salsa Santos (45ml)", "price": 1200},
     {"id": "pan-sin-tacc",     "name": "Cambio por Pan Sin TACC",          "price": 1900}
   ]'::jsonb
-)
-on conflict (id) do nothing;
+where not exists (select 1 from public.santos_settings where id = 1);
 
 update public.santos_settings
 set

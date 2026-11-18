@@ -30,6 +30,9 @@ Se puede ejecutar más de una vez sin problema. Corre en una transacción: si al
 > La **3.1** corrige el error "CASE types text[] and jsonb cannot be matched" al guardar ajustes, y
 > la **3.2** hace que el botón **Editar** de cada pedido guarde nombre, teléfono, dirección,
 > modalidad y total. No toca nada de lo que ya tenés guardado.
+>
+> **Si ya tenés la 3.1 aplicada**, alcanza con correr el parche corto
+> [`supabase/parche_3_2.sql`](supabase/parche_3_2.sql) en vez del script completo.
 
 **Qué hace:**
 
