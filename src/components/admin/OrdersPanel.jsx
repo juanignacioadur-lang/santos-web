@@ -174,15 +174,36 @@ function customerMessage(order, kind, storeName) {
 function OrderCard({ order, storeName, busy, onUpdate, onDelete, onVerifyMp, isFresh }) {
   const [notes, setNotes] = useState(order.admin_notes || '');
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({
+  const buildEditForm = () => ({
     customer_name: order.customer_name || '',
     customer_phone: order.customer_phone || '',
     address: order.address || '',
     order_type: order.order_type || 'takeaway',
     payment_method: order.payment_method || 'efectivo',
     status: order.status || 'nuevo',
-    total: String(order.total ?? 0)
+    total: String(Number(order.total) || 0),
+    totalTouched: false
   });
+  const [editForm, setEditForm] = useState(buildEditForm);
+
+  // El formulario se arma con los datos actuales del pedido cada vez que se abre
+  const openEditor = () => {
+    if (!isEditing) setEditForm(buildEditForm());
+    setIsEditing(!isEditing);
+  };
+
+  // Si deja de ser envío y el total no se tocó a mano, se descuenta el costo de envío
+  const handleEditType = (value) => {
+    setEditForm((prev) => {
+      const next = { ...prev, order_type: value };
+      if (!prev.totalTouched) {
+        const fee = Number(order.shipping_fee) || 0;
+        const base = Number(order.total) || 0;
+        next.total = String(order.order_type === 'delivery' && value !== 'delivery' ? Math.max(0, base - fee) : base);
+      }
+      return next;
+    });
+  };
 
   const status = ORDER_STATUS[order.status] || ORDER_STATUS.nuevo;
   const payment = PAYMENT_STATUS[order.payment_status] || PAYMENT_STATUS.pendiente;
@@ -196,16 +217,21 @@ function OrderCard({ order, storeName, busy, onUpdate, onDelete, onVerifyMp, isF
 
   const handleSaveEdit = async (e) => {
     e.preventDefault();
-    await onUpdate(order, {
-      customer_name: editForm.customer_name.trim() || 'Cliente',
-      customer_phone: editForm.customer_phone.trim(),
-      address: editForm.order_type === 'delivery' ? editForm.address.trim() : null,
-      order_type: editForm.order_type,
-      payment_method: editForm.payment_method,
-      status: editForm.status,
-      total: Math.max(0, Number(editForm.total) || 0)
-    });
-    setIsEditing(false);
+    const saved = await onUpdate(
+      order,
+      {
+        customer_name: editForm.customer_name.trim(),
+        customer_phone: editForm.customer_phone.trim(),
+        address: editForm.order_type === 'delivery' ? editForm.address.trim() : null,
+        order_type: editForm.order_type,
+        payment_method: editForm.payment_method,
+        status: editForm.status,
+        total: Math.max(0, Number(editForm.total) || 0)
+      },
+      { message: `Pedido #${order.code} actualizado` }
+    );
+    // Si falla, el formulario queda abierto con lo que se escribió
+    if (saved) setIsEditing(false);
   };
 
   const next = {
@@ -308,7 +334,7 @@ function OrderCard({ order, storeName, busy, onUpdate, onDelete, onVerifyMp, isF
               <label className="font-bold text-zinc-700 block mb-1">Modalidad</label>
               <select
                 value={editForm.order_type}
-                onChange={(e) => setEditForm({ ...editForm, order_type: e.target.value })}
+                onChange={(e) => handleEditType(e.target.value)}
                 className={`${inputClass} bg-white font-bold`}
               >
                 <option value="takeaway">Retira en el local</option>
@@ -322,9 +348,12 @@ function OrderCard({ order, storeName, busy, onUpdate, onDelete, onVerifyMp, isF
                 type="number"
                 min="0"
                 value={editForm.total}
-                onChange={(e) => setEditForm({ ...editForm, total: e.target.value })}
+                onChange={(e) => setEditForm({ ...editForm, total: e.target.value, totalTouched: true })}
                 className={`${inputClass} bg-white font-mono font-bold`}
               />
+              <p className="mt-1 text-[10px] font-medium text-zinc-500">
+                Si lo cambiás, la diferencia queda como descuento (o recargo) en el pedido y en el Excel.
+              </p>
             </div>
             {editForm.order_type === 'delivery' && (
               <div className="sm:col-span-2">
@@ -413,6 +442,7 @@ function OrderCard({ order, storeName, busy, onUpdate, onDelete, onVerifyMp, isF
             Comida {money(order.subtotal)}
             {isDelivery && ` · Envío ${Number(order.shipping_fee) > 0 ? money(order.shipping_fee) : 'gratis'}`}
             {Number(order.discount) > 0 && ` · Descuento −${money(order.discount)}`}
+            {Number(order.discount) < 0 && ` · Recargo +${money(-Number(order.discount))}`}
           </span>
           {order.payment_method === 'efectivo' && cash > 0 && (
             <span className="font-bold text-[#083821]">
@@ -502,7 +532,7 @@ function OrderCard({ order, storeName, busy, onUpdate, onDelete, onVerifyMp, isF
           <button
             type="button"
             disabled={busy}
-            onClick={() => setIsEditing(!isEditing)}
+            onClick={openEditor}
             title="Editar datos del pedido"
             aria-label={`Editar pedido ${order.code}`}
             className="inline-flex items-center gap-1 rounded-xl bg-zinc-100 hover:bg-zinc-200 px-2.5 py-2 text-xs font-bold text-[#083821] cursor-pointer disabled:opacity-60"
@@ -640,13 +670,13 @@ export default function OrdersPanel({ storeName, notify, onNewOrder }) {
     }));
   };
 
-  const handleUpdate = async (order, patch) => {
+  const handleUpdate = async (order, patch, options = {}) => {
     setBusyCode(order.code);
     const { data, error: requestError } = await adminUpdateOrder(order.code, patch);
     setBusyCode(null);
     if (requestError) {
       notify?.(`No se pudo actualizar #${order.code}: ${requestError.message}`, false);
-      return;
+      return false;
     }
     replaceOrder(data);
     setFreshCodes((prev) => {
@@ -654,8 +684,10 @@ export default function OrdersPanel({ storeName, notify, onNewOrder }) {
       nextSet.delete(order.code);
       return nextSet;
     });
-    if (patch.status) notify?.(`#${order.code}: ${ORDER_STATUS[patch.status]?.label || patch.status}`);
-    if (patch.payment_status) notify?.(`#${order.code}: ${PAYMENT_STATUS[patch.payment_status]?.label}`);
+    if (options.message) notify?.(options.message);
+    else if (patch.status) notify?.(`#${order.code}: ${ORDER_STATUS[patch.status]?.label || patch.status}`);
+    else if (patch.payment_status) notify?.(`#${order.code}: ${PAYMENT_STATUS[patch.payment_status]?.label}`);
+    return true;
   };
 
   const handleDelete = async (order) => {

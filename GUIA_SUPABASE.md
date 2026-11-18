@@ -27,7 +27,9 @@ Se puede ejecutar más de una vez sin problema. Corre en una transacción: si al
 > **¿Ya lo habías corrido antes?** Cada vez que el archivo cambia hay que volver a ejecutarlo
 > completo (la versión figura en la primera línea). La **versión 3** agrega los pedidos cargados
 > a mano (local, teléfono, WhatsApp), el pago con tarjeta, la caja del día y la exportación a Excel.
-> No toca nada de lo que ya tenés guardado.
+> La **3.1** corrige el error "CASE types text[] and jsonb cannot be matched" al guardar ajustes, y
+> la **3.2** hace que el botón **Editar** de cada pedido guarde nombre, teléfono, dirección,
+> modalidad y total. No toca nada de lo que ya tenés guardado.
 
 **Qué hace:**
 
