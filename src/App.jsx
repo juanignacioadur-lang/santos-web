@@ -457,15 +457,18 @@ export default function App() {
 
   return (
     <div className="min-h-[100dvh] bg-[#f2eee2] text-[#083821] antialiased flex flex-col">
-      <HeaderNavbar
-        cartCount={cartTotalItems}
-        cartTotal={cartGrandTotal}
-        onOpenCart={() => setIsCartOpen(true)}
-        isAdminView={isAdminView}
-        onToggleAdmin={() => setIsAdminView(!isAdminView)}
-        businessInfo={businessInfo}
-        storeStatus={storeStatus}
-      />
+      {/* El panel admin tiene su propia barra lateral, así que la cabecera de la tienda solo va en la web */}
+      {!isAdminView && (
+        <HeaderNavbar
+          cartCount={cartTotalItems}
+          cartTotal={cartGrandTotal}
+          onOpenCart={() => setIsCartOpen(true)}
+          isAdminView={isAdminView}
+          onToggleAdmin={() => setIsAdminView(!isAdminView)}
+          businessInfo={businessInfo}
+          storeStatus={storeStatus}
+        />
+      )}
 
       {isAdminView ? (
         <main className="flex-1 bg-[#f2eee2]">

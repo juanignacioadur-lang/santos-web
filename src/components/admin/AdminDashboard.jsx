@@ -1,12 +1,12 @@
 // src/components/admin/AdminDashboard.jsx
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
-  Utensils, Settings, PlusCircle, Trash2, Lock, LogOut,
+  Utensils, PlusCircle, Trash2, Lock, LogOut,
   CheckCircle, AlertCircle, Building2,
   Search, Edit3, X, Eye, EyeOff, Flame, KeyRound,
   PauseCircle, PlayCircle, CreditCard, Layers, ArrowUp, ArrowDown,
   LayoutDashboard, ClipboardList, Bike, CopyPlus, LoaderCircle, Megaphone, ShieldCheck, Receipt,
-  Wallet, Landmark, Users
+  Wallet, Landmark, Users, Menu, Store
 } from 'lucide-react';
 import {
   upsertMenuProduct, deleteMenuProduct, reorderMenuProducts, updateStoreSettings, isSupabaseConfigured
@@ -15,7 +15,7 @@ import {
   adminLogin, adminLogout, adminRestoreSession, adminChangePassword, hasAdminSession, onAdminSessionExpired
 } from '../../lib/adminSession';
 import { DEFAULT_CATEGORIES, AVAILABLE_TOPPINGS } from '../../data/menu';
-import { BUSINESS_CONFIG, getStoreStatus } from '../../data/business';
+import { BUSINESS_CONFIG, getStoreStatus, STORE_TIMEZONE } from '../../data/business';
 import { DEFAULT_STORE_CONFIG } from '../../lib/settings';
 import AdminOverview from './AdminOverview';
 import OrdersPanel from './OrdersPanel';
@@ -41,6 +41,68 @@ const EMPTY_PRODUCT = {
   isOutOfStock: false,
   image: ''
 };
+
+// Secciones del panel, agrupadas como se ven en la barra lateral
+const NAV_GROUPS = [
+  {
+    label: 'General',
+    items: [
+      { id: 'resumen', label: 'Resumen', icon: LayoutDashboard, description: 'Cómo viene el día, alertas y accesos rápidos.' }
+    ]
+  },
+  {
+    label: 'Ventas',
+    items: [
+      { id: 'pedidos', label: 'Pedidos', icon: ClipboardList, description: 'Pedidos de la web, del local, por teléfono y WhatsApp, con su estado y cobro.' },
+      { id: 'nuevo-pedido', label: 'Cargar pedido', icon: Receipt, description: 'Cargá en segundos los pedidos del local, por teléfono o por WhatsApp.' },
+      { id: 'clientes', label: 'Clientes', icon: Users, description: 'Quién te compra, cuánto gasta y cuándo pidió por última vez.' }
+    ]
+  },
+  {
+    label: 'Menú',
+    items: [
+      { id: 'menu', label: 'Platos', icon: Utensils, description: 'Platos, precios, fotos y stock. Los cambios se ven al instante en la web.' },
+      { id: 'categorias', label: 'Secciones', icon: Layers, description: 'Las secciones del menú y el orden en que aparecen en la web.' },
+      { id: 'extras', label: 'Extras y toppings', icon: PlusCircle, description: 'Agregados que los clientes pueden sumar a sus platos.' }
+    ]
+  },
+  {
+    label: 'Local',
+    items: [
+      { id: 'negocio', label: 'Horarios y local', icon: Building2, description: 'Datos del local, horarios de atención, cierre manual y textos de la web.' },
+      { id: 'envios', label: 'Envíos', icon: Bike, description: 'Zonas y costos de envío, pedido mínimo y tiempos de entrega.' },
+      { id: 'cobros', label: 'Pagos', icon: CreditCard, description: 'Medios de pago, Mercado Pago y datos para transferencias.' }
+    ]
+  },
+  {
+    label: 'Finanzas',
+    items: [
+      { id: 'gastos', label: 'Gastos', icon: Wallet, description: 'Compras y gastos del negocio, con su comprobante.' },
+      { id: 'impuestos', label: 'Impuestos y contador', icon: Landmark, description: 'Monotributo, IVA, Ingresos Brutos y el Excel mensual para el contador.' }
+    ]
+  },
+  {
+    label: 'Cuenta',
+    items: [
+      { id: 'seguridad', label: 'Seguridad', icon: ShieldCheck, description: 'Contraseña del panel y sesiones abiertas.' }
+    ]
+  }
+];
+
+const NAV_ITEMS = NAV_GROUPS.flatMap((group) => group.items.map((item) => ({ ...item, group: group.label })));
+const TAB_STORAGE_KEY = 'santos_admin_tab';
+
+// Recuerda en qué sección estabas si recargás la página (solo en esta pestaña del navegador)
+function readStoredTab() {
+  try {
+    const stored = sessionStorage.getItem(TAB_STORAGE_KEY);
+    return NAV_ITEMS.some((item) => item.id === stored) ? stored : 'resumen';
+  } catch {
+    return 'resumen';
+  }
+}
+
+const todayFormatter = new Intl.DateTimeFormat('es-AR', { timeZone: STORE_TIMEZONE, weekday: 'long', day: 'numeric', month: 'long' });
 
 export default function AdminDashboard({
   products = [],
@@ -75,7 +137,9 @@ export default function AdminDashboard({
   const [showNewPasswords, setShowNewPasswords] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
 
-  const [activeTab, setActiveTab] = useState('resumen');
+  const [activeTab, setActiveTab] = useState(readStoredTab);
+  const [navOpen, setNavOpen] = useState(false);
+  const [today, setToday] = useState(() => todayFormatter.format(new Date()));
   const [adminSearch, setAdminSearch] = useState('');
   const [statusMessage, setStatusMessage] = useState(null);
   const [savingProduct, setSavingProduct] = useState(false);
@@ -182,6 +246,53 @@ export default function AdminDashboard({
   useEffect(() => () => {
     if (statusTimer.current) clearTimeout(statusTimer.current);
   }, []);
+
+  // Navegación entre secciones (barra lateral en PC, menú desplegable en el celular)
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(TAB_STORAGE_KEY, activeTab);
+    } catch {
+      // sin almacenamiento disponible: solo no se recuerda la sección
+    }
+  }, [activeTab]);
+
+  // Al entrar al panel (por ejemplo desde el pie de la web) se arranca desde arriba
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, []);
+
+  // La fecha del encabezado cambia sola al pasar la medianoche
+  useEffect(() => {
+    const timer = setInterval(() => setToday(todayFormatter.format(new Date())), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const goTo = useCallback((tabId) => {
+    setActiveTab(tabId);
+    setNavOpen(false);
+    window.scrollTo({ top: 0 });
+  }, []);
+
+  // Con el menú del celular abierto: Escape lo cierra y la página de atrás no se desplaza
+  useEffect(() => {
+    if (!navOpen) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setNavOpen(false);
+    };
+    const desktop = window.matchMedia('(min-width: 1024px)');
+    const onDesktop = (e) => {
+      if (e.matches) setNavOpen(false);
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKey);
+    desktop.addEventListener('change', onDesktop);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKey);
+      desktop.removeEventListener('change', onDesktop);
+    };
+  }, [navOpen]);
 
   // Centraliza el reporte de errores de guardado en la nube
   const reportError = useCallback((error, context) => {
@@ -660,7 +771,13 @@ export default function AdminDashboard({
   // =========================================================================
   if (!isAuthenticated) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center px-4 py-12 bg-[#f2eee2] select-none text-left">
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center gap-6 px-4 py-12 bg-[#f2eee2] select-none text-left">
+        <img
+          src="/santos.png"
+          alt="Santos"
+          className="h-14 w-auto object-contain"
+          style={{ filter: 'brightness(0) saturate(100%) invert(18%) sepia(38%) saturate(1471%) hue-rotate(107deg) brightness(96%) contrast(98%)' }}
+        />
         <div className="max-w-md w-full bg-[#fbf9f3] border-2 border-[#083821]/20 p-8 sm:p-10 rounded-3xl shadow-xl text-center">
 
           <div className="w-16 h-16 rounded-2xl bg-[#083821] text-[#eb623a] flex items-center justify-center mx-auto mb-4 border-2 border-[#eb623a] shadow-md">
@@ -749,31 +866,165 @@ export default function AdminDashboard({
     );
   }
 
-  const tabs = [
-    { id: 'resumen', label: 'Resumen', icon: LayoutDashboard },
-    { id: 'pedidos', label: 'Pedidos', icon: ClipboardList },
-    { id: 'nuevo-pedido', label: 'Cargar pedido', icon: Receipt },
-    { id: 'menu', label: 'Gestor del Menú', icon: Utensils, count: products.length },
-    { id: 'categorias', label: 'Secciones / Categorías', icon: Layers, count: categoryList.length },
-    { id: 'extras', label: 'Extras / Toppings', icon: PlusCircle, count: toppingList.length },
-    { id: 'negocio', label: 'Horarios y Local', icon: Building2 },
-    { id: 'envios', label: 'Envíos', icon: Bike },
-    { id: 'cobros', label: 'Pagos', icon: CreditCard },
-    { id: 'gastos', label: 'Gastos', icon: Wallet },
-    { id: 'impuestos', label: 'Impuestos y contador', icon: Landmark },
-    { id: 'clientes', label: 'Clientes', icon: Users },
-    { id: 'seguridad', label: 'Seguridad', icon: Settings }
-  ];
+  const navCounts = { menu: products.length, categorias: categoryList.length, extras: toppingList.length };
+  const navAlerts = { seguridad: isDefaultPassword };
+  const activeItem = NAV_ITEMS.find((item) => item.id === activeTab) || NAV_ITEMS[0];
+  const statusDetail = currentStatus.isOpen
+    ? String(currentStatus.badgeText || '').replace('Abierto - ', '')
+    : currentStatus.closedDetail;
+
+  // Contenido de la barra lateral (se usa igual en PC y en el menú del celular)
+  const renderSidebar = (onClose) => (
+    <>
+      <div className="flex items-start justify-between gap-2 px-5 pt-6 pb-5">
+        <div className="min-w-0">
+          <img src="/santos.png" alt="Santos" className="h-10 w-auto object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
+          <p className="mt-2 text-[10px] font-black uppercase tracking-[0.22em] text-[#eb623a]">Panel de operaciones</p>
+        </div>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Cerrar el menú"
+            className="-mr-1 grid size-9 shrink-0 place-items-center rounded-xl text-[#f2eee2]/70 hover:bg-white/10 hover:text-white cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => goTo('resumen')}
+        title="Abrí o cerrá el local desde el Resumen"
+        className="mx-4 mb-2 rounded-2xl border border-white/10 bg-white/[0.06] px-3.5 py-3 text-left transition-colors hover:bg-white/10 cursor-pointer"
+      >
+        <span className="flex items-center gap-2 text-xs font-bold text-white">
+          <span className={`size-2.5 shrink-0 rounded-full ${currentStatus.dotColor}`} />
+          {currentStatus.isOpen ? 'Local abierto' : 'Local cerrado'}
+        </span>
+        {statusDetail && (
+          <span className="mt-0.5 block truncate pl-[18px] text-[11px] font-medium text-[#f2eee2]/55">{statusDetail}</span>
+        )}
+      </button>
+
+      <nav aria-label="Secciones del panel" className="admin-scroll flex-1 overflow-y-auto px-3 pb-4">
+        {NAV_GROUPS.map((group) => (
+          <div key={group.label} className="pt-4">
+            <p className="px-3 pb-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#f2eee2]/35">{group.label}</p>
+            <ul className="flex flex-col gap-0.5">
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+                const count = navCounts[item.id];
+                return (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      onClick={() => goTo(item.id)}
+                      aria-current={isActive ? 'page' : undefined}
+                      className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold transition-colors cursor-pointer ${
+                        isActive
+                          ? 'bg-[#f2eee2] text-[#083821] shadow-sm'
+                          : 'text-[#f2eee2]/75 hover:bg-white/[0.07] hover:text-white'
+                      }`}
+                    >
+                      <Icon className={`w-[18px] h-[18px] shrink-0 ${isActive ? 'text-[#eb623a]' : 'text-[#f2eee2]/45 group-hover:text-[#f5b82e]'}`} />
+                      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                      {count !== undefined && (
+                        <span className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-bold ${isActive ? 'bg-[#083821] text-[#f5b82e]' : 'bg-white/10 text-[#f2eee2]/70'}`}>
+                          {count}
+                        </span>
+                      )}
+                      {navAlerts[item.id] && <span className="size-2 shrink-0 rounded-full bg-red-500" aria-label="Requiere atención" />}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </nav>
+
+      <div className="flex flex-col gap-0.5 border-t border-white/10 p-3">
+        <button
+          type="button"
+          onClick={onExitAdmin}
+          className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold text-[#f2eee2]/75 transition-colors hover:bg-white/[0.07] hover:text-white cursor-pointer"
+        >
+          <Store className="w-[18px] h-[18px] shrink-0 text-[#f2eee2]/45 group-hover:text-[#f5b82e]" />
+          Ver la web
+        </button>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold text-red-300 transition-colors hover:bg-red-500/15 hover:text-red-200 cursor-pointer"
+        >
+          <LogOut className="w-[18px] h-[18px] shrink-0" />
+          Cerrar sesión
+        </button>
+      </div>
+    </>
+  );
 
   // =========================================================================
   // VISTA 2: DASHBOARD PRINCIPAL ACTIVO
   // =========================================================================
   return (
-    <div className="max-w-6xl mx-auto px-5 sm:px-8 pt-4 pb-12 w-full text-left select-none text-[#083821]">
+    <div className="w-full min-h-[100dvh] text-left select-none text-[#083821] lg:flex">
+
+      {/* Barra lateral fija (PC) */}
+      <aside className="hidden lg:flex lg:sticky lg:top-0 lg:h-[100dvh] w-64 xl:w-72 shrink-0 flex-col bg-[#083821] text-[#f2eee2] z-30">
+        {renderSidebar(null)}
+      </aside>
+
+      {/* Menú desplegable (celular y tablet) */}
+      {navOpen && (
+        <div className="lg:hidden fixed inset-0 z-[100] flex" role="dialog" aria-modal="true" aria-label="Secciones del panel">
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-hidden="true"
+            onClick={() => setNavOpen(false)}
+            className="absolute inset-0 bg-black/60 backdrop-blur-[2px] animate-fadeIn cursor-default"
+          />
+          <aside className="relative flex h-full w-[84%] max-w-[300px] flex-col bg-[#083821] text-[#f2eee2] shadow-2xl animate-drawerIn">
+            {renderSidebar(() => setNavOpen(false))}
+          </aside>
+        </div>
+      )}
+
+      <div className="flex min-w-0 flex-1 flex-col">
+
+      {/* Barra superior (celular y tablet) */}
+      <header className="lg:hidden sticky top-0 z-40 bg-[#083821] text-[#f2eee2] shadow-md">
+        <div className="flex h-14 items-center gap-3 px-3">
+          <button
+            type="button"
+            onClick={() => setNavOpen(true)}
+            aria-label="Abrir el menú del panel"
+            aria-expanded={navOpen}
+            className="relative grid size-10 shrink-0 place-items-center rounded-xl bg-white/10 hover:bg-white/15 cursor-pointer"
+          >
+            <Menu className="w-5 h-5" />
+            {isDefaultPassword && <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-red-500" />}
+          </button>
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#eb623a] leading-none">{activeItem.group}</p>
+            <p className="font-heading text-lg uppercase leading-tight truncate mt-0.5">{activeItem.label}</p>
+          </div>
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide">
+            <span className={`size-2 rounded-full ${currentStatus.dotColor}`} />
+            {currentStatus.isOpen ? 'Abierto' : 'Cerrado'}
+          </span>
+        </div>
+      </header>
+
+      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-10 pt-5 lg:pt-8 pb-12">
 
       {/* Toast Notificación Flotante */}
       {statusMessage && (
-        <div role="status" aria-live="polite" className={`fixed bottom-6 left-6 right-6 sm:right-auto sm:max-w-md z-[120] p-4 rounded-2xl border-2 text-xs font-bold flex items-center gap-2 shadow-2xl animate-toastIn ${
+        <div role="status" aria-live="polite" className={`fixed bottom-6 left-6 right-6 sm:right-auto lg:left-auto lg:right-8 sm:max-w-md z-[120] p-4 rounded-2xl border-2 text-xs font-bold flex items-center gap-2 shadow-2xl animate-toastIn ${
           statusMessage.isSuccess
             ? 'bg-[#083821] text-[#eb623a] border-[#eb623a]'
             : 'bg-red-800 text-white border-red-500'
@@ -809,76 +1060,31 @@ export default function AdminDashboard({
         </div>
       )}
 
-      {/* CABECERA DEL DASHBOARD */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b-2 border-zinc-200 mb-6">
-        <div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-[#eb623a] flex items-center gap-1.5">
+      {/* ENCABEZADO DE LA SECCIÓN */}
+      <div className="hidden lg:flex items-end justify-between gap-6 pb-5 border-b-2 border-zinc-200 mb-6">
+        <div className="min-w-0">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#eb623a] flex items-center gap-1.5">
             <Flame className="w-3.5 h-3.5 fill-[#eb623a]" />
-            <span>Control de Cocina & Pedidos</span>
-          </span>
-          <h2 className="font-heading text-2xl sm:text-4xl uppercase text-[#083821] mt-0.5">
-            Panel de Operaciones Santos
-          </h2>
-          <p className="text-xs text-zinc-500 font-medium flex items-center gap-1.5">
-            <span className={`size-2 rounded-full ${currentStatus.dotColor}`} />
-            {currentStatus.isOpen ? `Local abierto · ${currentStatus.badgeText.replace('Abierto - ', '')}` : `Local cerrado · ${currentStatus.closedDetail}`}
+            <span>{activeItem.group}</span>
           </p>
+          <h1 className="font-heading text-4xl uppercase text-[#083821] mt-1 leading-none">{activeItem.label}</h1>
+          <p className="text-xs text-zinc-500 font-medium mt-2">{activeItem.description}</p>
         </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onExitAdmin}
-            className="bg-[#fbf9f3] border-2 border-zinc-300 hover:border-[#083821] text-[#083821] px-4 py-2.5 rounded-xl text-xs font-heading uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shadow-sm"
-          >
-            <Eye className="w-4 h-4 text-[#083821]" />
-            <span>Ver Menú en Vivo</span>
-          </button>
-
-          <button
-            onClick={handleLogout}
-            className="bg-red-50 hover:bg-red-100 text-red-700 border-2 border-red-200 px-3.5 py-2.5 rounded-xl text-xs font-heading uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Cerrar sesión</span>
-          </button>
-        </div>
-      </div>
-
-      {/* PESTAÑAS DE NAVEGACIÓN */}
-      <div className="flex gap-2 mb-6 border-b-2 border-zinc-200 pb-3 overflow-x-auto" role="tablist" aria-label="Secciones del panel">
-        {tabs.map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
+        <div className="flex shrink-0 items-center gap-4">
+          <span className="text-xs font-semibold text-zinc-500 first-letter:uppercase">{today}</span>
+          {activeTab !== 'nuevo-pedido' && (
             <button
-              key={tab.id}
-              role="tab"
-              aria-selected={isActive}
-              onClick={(e) => {
-                setActiveTab(tab.id);
-                // En celular la barra de pestañas se desliza para dejar visible la elegida
-                e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-              }}
-              className={`px-4 py-2.5 rounded-xl text-xs font-heading uppercase tracking-wider flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer ${
-                isActive
-                  ? 'bg-[#083821] text-[#eb623a] shadow-md'
-                  : 'bg-[#fbf9f3] text-zinc-600 border border-zinc-200 hover:border-[#083821]'
-              }`}
+              type="button"
+              onClick={() => goTo('nuevo-pedido')}
+              className="bg-[#083821] hover:bg-[#042415] text-[#f5b82e] font-heading text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl shadow-md transition-all active:scale-98 cursor-pointer inline-flex items-center gap-2"
             >
-              <Icon className="w-4 h-4" />
-              <span>{tab.label}</span>
-              {tab.count !== undefined && (
-                <span className="bg-[#083821] text-[#eb623a] text-[10px] px-2 py-0.5 rounded-full font-mono">
-                  {tab.count}
-                </span>
-              )}
-              {tab.id === 'seguridad' && isDefaultPassword && (
-                <span className="size-2 rounded-full bg-red-500" aria-label="Requiere atención" />
-              )}
+              <PlusCircle className="w-4 h-4" />
+              Cargar pedido
             </button>
-          );
-        })}
+          )}
+        </div>
       </div>
+      <p className="lg:hidden mb-4 text-xs text-zinc-500 font-medium">{activeItem.description}</p>
 
       {/* ========================================================= */}
       {/* PESTAÑA: RESUMEN                                          */}
@@ -893,7 +1099,7 @@ export default function AdminDashboard({
           isDefaultPassword={isDefaultPassword}
           products={products}
           onToggleManualClosed={handleToggleManualClosed}
-          onGoTo={setActiveTab}
+          onGoTo={goTo}
         />
       )}
 
@@ -901,7 +1107,7 @@ export default function AdminDashboard({
       {/* PESTAÑA: PEDIDOS                                          */}
       {/* ========================================================= */}
       {activeTab === 'pedidos' && (
-        <OrdersPanel storeName={businessInfo?.name} notify={showNotification} onNewOrder={() => setActiveTab('nuevo-pedido')} />
+        <OrdersPanel storeName={businessInfo?.name} notify={showNotification} onNewOrder={() => goTo('nuevo-pedido')} />
       )}
 
       {/* ========================================================= */}
@@ -928,7 +1134,7 @@ export default function AdminDashboard({
           storeConfig={storeConfig}
           notify={showNotification}
           reportError={reportError}
-          onGoToOrders={() => setActiveTab('pedidos')}
+          onGoToOrders={() => goTo('pedidos')}
         />
       )}
 
@@ -2120,6 +2326,8 @@ export default function AdminDashboard({
         </div>
       )}
 
+      </div>
+      </div>
     </div>
   );
 }

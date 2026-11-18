@@ -157,6 +157,17 @@
     animation: santosToastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
+  /* Menú lateral del panel admin en el celular */
+  .animate-drawerIn {
+    animation: santosDrawerIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* Barra de desplazamiento fina para el menú lateral del panel */
+  .admin-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(242, 238, 226, 0.18) transparent;
+  }
+
   /* Ocultar barra de scroll en carruseles táctiles */
   .no-scrollbar::-webkit-scrollbar {
     display: none;
@@ -179,6 +190,15 @@
   }
   to {
     opacity: 1;
+  }
+}
+
+@keyframes santosDrawerIn {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
   }
 }
 
