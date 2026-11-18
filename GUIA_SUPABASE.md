@@ -29,10 +29,12 @@ Se puede ejecutar más de una vez sin problema. Corre en una transacción: si al
 > a mano (local, teléfono, WhatsApp), el pago con tarjeta, la caja del día y la exportación a Excel.
 > La **3.1** corrige el error "CASE types text[] and jsonb cannot be matched" al guardar ajustes, y
 > la **3.2** hace que el botón **Editar** de cada pedido guarde nombre, teléfono, dirección,
-> modalidad y total. No toca nada de lo que ya tenés guardado.
+> modalidad y total. La **3.3** suma las pestañas **Gastos**, **Impuestos y contador** y
+> **Clientes**, y el número de factura en cada pedido. No toca nada de lo que ya tenés guardado.
 >
-> **Si ya tenés la 3.1 aplicada**, alcanza con correr el parche corto
-> [`supabase/parche_3_2.sql`](supabase/parche_3_2.sql) en vez del script completo.
+> **Si ya tenés la 3.2 aplicada**, alcanza con correr el parche corto
+> [`supabase/parche_3_3.sql`](supabase/parche_3_3.sql) en vez del script completo.
+> (Si tenés la 3.1, corré primero [`supabase/parche_3_2.sql`](supabase/parche_3_2.sql) y después el 3.3.)
 
 **Qué hace:**
 
