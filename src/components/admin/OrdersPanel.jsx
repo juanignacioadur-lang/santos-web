@@ -4,14 +4,14 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ClipboardList, Search, RefreshCw, LoaderCircle, Bike, Store, Phone, MessageCircle,
   ChefHat, CircleCheck, Ban, Trash2, Wallet, StickyNote, Bell, BellRing, TriangleAlert, Inbox, MapPin,
-  UtensilsCrossed, FileSpreadsheet, PlusCircle, Edit3, Check, X
+  UtensilsCrossed, FileSpreadsheet, PlusCircle, Edit3, Check, X, Receipt
 } from 'lucide-react';
 import {
   adminListOrders, adminUpdateOrder, adminDeleteOrder, adminExportOrders, mpAdminVerify, isSupabaseConfigured
 } from '../../lib/supabase';
 import { getStoreNow } from '../../data/business';
 import { whatsappUrl } from '../../lib/orderMessage';
-import { MONTH_NAMES, monthRange, yearRange } from '../../lib/excelExport';
+import { MONTH_NAMES, monthRange, yearRange, downloadOrdersExcel } from '../../lib/excelExport';
 import {
   Panel, PanelTitle, Notice, Badge, ORDER_STATUS, PAYMENT_STATUS, PAYMENT_METHOD_LABEL, ORDER_SOURCE,
   ORDER_TYPE_LABEL, money, formatTime, formatDateTime, timeAgo, inputClass, secondaryButtonClass
@@ -53,7 +53,6 @@ function ExportExcel({ storeName, notify }) {
         notify?.(`No se pudo descargar: ${error.message}`, false);
         return;
       }
-      const { downloadOrdersExcel } = await import('../../lib/excelExport');
       await downloadOrdersExcel({
         orders: Array.isArray(data) ? data : [],
         period: wholeYear ? { type: 'year', year } : { type: 'month', year, month: monthIndex },
@@ -173,6 +172,7 @@ function customerMessage(order, kind, storeName) {
 
 function OrderCard({ order, storeName, busy, onUpdate, onDelete, onVerifyMp, isFresh }) {
   const [notes, setNotes] = useState(order.admin_notes || '');
+  const [invoiceNumber, setInvoiceNumber] = useState(order.invoice_number || '');
   const [isEditing, setIsEditing] = useState(false);
   const buildEditForm = () => ({
     customer_name: order.customer_name || '',
@@ -215,6 +215,10 @@ function OrderCard({ order, storeName, busy, onUpdate, onDelete, onVerifyMp, isF
     setNotes(order.admin_notes || '');
   }, [order.admin_notes]);
 
+  useEffect(() => {
+    setInvoiceNumber(order.invoice_number || '');
+  }, [order.invoice_number]);
+
   const handleSaveEdit = async (e) => {
     e.preventDefault();
     const saved = await onUpdate(
@@ -256,6 +260,9 @@ function OrderCard({ order, storeName, busy, onUpdate, onDelete, onVerifyMp, isF
             <h4 className="font-heading text-lg uppercase text-[#083821] leading-none">#{order.code}</h4>
             <Badge className={status.className}>{status.label}</Badge>
             <Badge className={payment.className}>{payment.label}</Badge>
+            {order.invoice_number && (
+              <Badge className="bg-emerald-50 text-emerald-800 border border-emerald-300">Facturado</Badge>
+            )}
             {order.source && order.source !== 'web' && (
               <Badge className={ORDER_SOURCE[order.source]?.className || ORDER_SOURCE.otro.className}>
                 {ORDER_SOURCE[order.source]?.label || order.source}
@@ -468,6 +475,27 @@ function OrderCard({ order, storeName, busy, onUpdate, onDelete, onVerifyMp, isF
           className={inputClass}
         />
       </div>
+
+      {/* Factura emitida (para el control de impuestos) */}
+      {order.status !== 'cancelado' && (
+        <div className="mt-2 flex items-center gap-2">
+          <Receipt className={`w-4 h-4 shrink-0 ${order.invoice_number ? 'text-emerald-600' : 'text-zinc-400'}`} />
+          <input
+            type="text"
+            value={invoiceNumber}
+            maxLength={40}
+            placeholder="N° de factura emitida (ej: 0001-00000123)"
+            aria-label={`Número de factura del pedido ${order.code}`}
+            onChange={(e) => setInvoiceNumber(e.target.value)}
+            onBlur={() => {
+              if ((order.invoice_number || '') !== invoiceNumber.trim()) {
+                onUpdate(order, { invoice_number: invoiceNumber }, { message: invoiceNumber.trim() ? `#${order.code}: factura ${invoiceNumber.trim()} cargada` : `#${order.code}: factura borrada` });
+              }
+            }}
+            className={`${inputClass} font-mono ${order.invoice_number ? 'border-emerald-300' : ''}`}
+          />
+        </div>
+      )}
 
       {/* Acciones */}
       <div className="mt-3 flex flex-wrap items-center gap-2">

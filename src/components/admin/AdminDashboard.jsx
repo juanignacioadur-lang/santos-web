@@ -5,7 +5,8 @@ import {
   CheckCircle, AlertCircle, Building2,
   Search, Edit3, X, Eye, EyeOff, Flame, KeyRound,
   PauseCircle, PlayCircle, CreditCard, Layers, ArrowUp, ArrowDown,
-  LayoutDashboard, ClipboardList, Bike, CopyPlus, LoaderCircle, Megaphone, ShieldCheck, Receipt
+  LayoutDashboard, ClipboardList, Bike, CopyPlus, LoaderCircle, Megaphone, ShieldCheck, Receipt,
+  Wallet, Landmark, Users
 } from 'lucide-react';
 import {
   upsertMenuProduct, deleteMenuProduct, reorderMenuProducts, updateStoreSettings, isSupabaseConfigured
@@ -21,6 +22,9 @@ import OrdersPanel from './OrdersPanel';
 import DeliveryPanel from './DeliveryPanel';
 import PaymentsPanel from './PaymentsPanel';
 import ManualOrderPanel from './ManualOrderPanel';
+import ExpensesPanel from './ExpensesPanel';
+import TaxesPanel from './TaxesPanel';
+import CustomersPanel from './CustomersPanel';
 import { formatDateTime } from './adminUi';
 
 const EMPTY_PRODUCT = {
@@ -755,6 +759,9 @@ export default function AdminDashboard({
     { id: 'negocio', label: 'Horarios y Local', icon: Building2 },
     { id: 'envios', label: 'Envíos', icon: Bike },
     { id: 'cobros', label: 'Pagos', icon: CreditCard },
+    { id: 'gastos', label: 'Gastos', icon: Wallet },
+    { id: 'impuestos', label: 'Impuestos y contador', icon: Landmark },
+    { id: 'clientes', label: 'Clientes', icon: Users },
     { id: 'seguridad', label: 'Seguridad', icon: Settings }
   ];
 
@@ -895,6 +902,19 @@ export default function AdminDashboard({
       {/* ========================================================= */}
       {activeTab === 'pedidos' && (
         <OrdersPanel storeName={businessInfo?.name} notify={showNotification} onNewOrder={() => setActiveTab('nuevo-pedido')} />
+      )}
+
+      {/* ========================================================= */}
+      {/* PESTAÑAS: GASTOS, IMPUESTOS Y CLIENTES                    */}
+      {/* ========================================================= */}
+      {activeTab === 'gastos' && (
+        <ExpensesPanel notify={showNotification} reportError={reportError} />
+      )}
+      {activeTab === 'impuestos' && (
+        <TaxesPanel storeName={businessInfo?.name} notify={showNotification} reportError={reportError} />
+      )}
+      {activeTab === 'clientes' && (
+        <CustomersPanel storeName={businessInfo?.name} notify={showNotification} />
       )}
 
       {/* ========================================================= */}

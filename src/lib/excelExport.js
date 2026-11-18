@@ -8,19 +8,19 @@ export const MONTH_NAMES = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ];
 
-const SOURCE_LABEL = { web: 'Web', local: 'En el local', telefono: 'Teléfono', whatsapp: 'WhatsApp', otro: 'Otro' };
-const TYPE_LABEL = { delivery: 'Envío', takeaway: 'Retira', mesa: 'Come en el local' };
-const METHOD_LABEL = { transferencia: 'Transferencia', mercadopago: 'Mercado Pago', efectivo: 'Efectivo', tarjeta: 'Tarjeta', sin_definir: 'Sin definir' };
-const STATUS_LABEL = { nuevo: 'Nuevo', preparando: 'En preparación', listo: 'Listo', entregado: 'Entregado', cancelado: 'Cancelado', pendiente: 'Sin confirmar' };
-const PAYMENT_STATUS_LABEL = { aprobado: 'Pagado', pendiente: 'Pendiente', rechazado: 'Rechazado', reembolsado: 'Reembolsado' };
+export const SOURCE_LABEL = { web: 'Web', local: 'En el local', telefono: 'Teléfono', whatsapp: 'WhatsApp', otro: 'Otro' };
+export const TYPE_LABEL = { delivery: 'Envío', takeaway: 'Retira', mesa: 'Come en el local' };
+export const METHOD_LABEL = { transferencia: 'Transferencia', mercadopago: 'Mercado Pago', efectivo: 'Efectivo', tarjeta: 'Tarjeta', sin_definir: 'Sin definir' };
+export const STATUS_LABEL = { nuevo: 'Nuevo', preparando: 'En preparación', listo: 'Listo', entregado: 'Entregado', cancelado: 'Cancelado', pendiente: 'Sin confirmar' };
+export const PAYMENT_STATUS_LABEL = { aprobado: 'Pagado', pendiente: 'Pendiente', rechazado: 'Rechazado', reembolsado: 'Reembolsado' };
 
-const VALID_STATUSES = new Set(['nuevo', 'preparando', 'listo', 'entregado']);
+export const VALID_STATUSES = new Set(['nuevo', 'preparando', 'listo', 'entregado']);
 
-const GREEN = 'FF083821';
-const CREAM = 'FFF2EEE2';
-const YELLOW = 'FFF5B82E';
-const MONEY = '"$" #,##0;[Red]-"$" #,##0';
-const PERCENT = '0.0%';
+export const GREEN = 'FF083821';
+export const CREAM = 'FFF2EEE2';
+export const YELLOW = 'FFF5B82E';
+export const MONEY = '"$" #,##0;[Red]-"$" #,##0';
+export const PERCENT = '0.0%';
 
 // Período en hora de Córdoba (Argentina no tiene horario de verano: UTC-3 fijo)
 export function monthRange(year, monthIndex) {
@@ -47,7 +47,7 @@ const partsFormatter = new Intl.DateTimeFormat('en-CA', {
 });
 
 // Fecha/hora del local → partes numéricas
-function localParts(iso) {
+export function localParts(iso) {
   const parts = {};
   for (const p of partsFormatter.formatToParts(new Date(iso))) parts[p.type] = p.value;
   return {
@@ -60,11 +60,11 @@ function localParts(iso) {
 }
 
 // Excel guarda fechas "sin zona": se arma un Date en UTC con la hora de pared del local
-const excelDate = (p) => new Date(Date.UTC(p.year, p.month - 1, p.day));
-const excelTime = (p) => new Date(Date.UTC(1899, 11, 30, p.hour, p.minute));
-const dayKey = (p) => `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
+export const excelDate = (p) => new Date(Date.UTC(p.year, p.month - 1, p.day));
+export const excelTime = (p) => new Date(Date.UTC(1899, 11, 30, p.hour, p.minute));
+export const dayKey = (p) => `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
 
-function itemsText(items) {
+export function itemsText(items) {
   return (Array.isArray(items) ? items : [])
     .map((item) => {
       let text = `${item.quantity}x ${item.title}`;
@@ -77,7 +77,7 @@ function itemsText(items) {
     .join('\n');
 }
 
-function deliveryText(order) {
+export function deliveryText(order) {
   if (order.order_type !== 'delivery') return '';
   return [order.zone_name, order.address, order.apartment, order.address_notes].filter(Boolean).join(' · ');
 }
@@ -85,7 +85,7 @@ function deliveryText(order) {
 // ---------------------------------------------------------------------------
 // Estilos
 // ---------------------------------------------------------------------------
-function styleHeaderRow(row) {
+export function styleHeaderRow(row) {
   row.height = 22;
   row.eachCell((cell) => {
     cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
@@ -95,7 +95,7 @@ function styleHeaderRow(row) {
   });
 }
 
-function styleTotalRow(row) {
+export function styleTotalRow(row) {
   row.eachCell((cell) => {
     cell.font = { bold: true, color: { argb: GREEN } };
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CREAM } };
@@ -103,7 +103,7 @@ function styleTotalRow(row) {
   });
 }
 
-function addTitle(sheet, title, subtitle, lastColumn) {
+export function addTitle(sheet, title, subtitle, lastColumn) {
   sheet.mergeCells(`A1:${lastColumn}1`);
   const t = sheet.getCell('A1');
   t.value = title;
@@ -119,7 +119,7 @@ function addTitle(sheet, title, subtitle, lastColumn) {
   s.alignment = { indent: 1 };
 }
 
-function addSectionTitle(sheet, rowNumber, text, lastColumn) {
+export function addSectionTitle(sheet, rowNumber, text, lastColumn) {
   sheet.mergeCells(`A${rowNumber}:${lastColumn}${rowNumber}`);
   const cell = sheet.getCell(`A${rowNumber}`);
   cell.value = text.toUpperCase();
@@ -256,10 +256,10 @@ export async function buildOrdersWorkbook({ orders, period, businessName = 'Sant
   const columns = [
     ['Fecha', 11], ['Hora', 7], ['Código', 11], ['Origen', 12], ['Estado', 14], ['Cliente', 22], ['Teléfono', 15],
     ['Modalidad', 15], ['Zona / Dirección', 30], ['Detalle', 46], ['Ítems', 7], ['Subtotal', 12], ['Envío', 10],
-    ['Descuento', 11], ['Total', 13], ['Medio de pago', 15], ['Pago', 11], ['Notas', 28]
+    ['Descuento', 11], ['Total', 13], ['Medio de pago', 15], ['Pago', 11], ['Factura N°', 16], ['Notas', 28]
   ];
   ped.columns = columns.map(([, width]) => ({ width }));
-  addTitle(ped, title, subtitle, 'R');
+  addTitle(ped, title, subtitle, 'S');
   const pedHead = ped.getRow(3);
   pedHead.values = columns.map(([name]) => name);
   styleHeaderRow(pedHead);
@@ -286,6 +286,7 @@ export async function buildOrdersWorkbook({ orders, period, businessName = 'Sant
       Number(order.total) || 0,
       METHOD_LABEL[order.payment_method] || 'Sin definir',
       PAYMENT_STATUS_LABEL[order.payment_status] || order.payment_status,
+      order.invoice_number || '',
       [order.admin_notes, order.payment_method === 'efectivo' && order.cash_amount ? `Paga con $${Number(order.cash_amount).toLocaleString('es-AR')}` : '', order.mp_payment_id ? `MP #${order.mp_payment_id}` : '']
         .filter(Boolean)
         .join(' · ')
@@ -296,7 +297,7 @@ export async function buildOrdersWorkbook({ orders, period, businessName = 'Sant
     row.getCell(15).font = { bold: true };
     row.getCell(10).alignment = { wrapText: true, vertical: 'top' };
     row.getCell(9).alignment = { wrapText: true, vertical: 'top' };
-    row.getCell(18).alignment = { wrapText: true, vertical: 'top' };
+    row.getCell(19).alignment = { wrapText: true, vertical: 'top' };
     if (order.payment_status !== 'aprobado') {
       row.getCell(17).font = { bold: true, color: { argb: 'FFB45309' } };
     }

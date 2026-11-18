@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Suspense, lazy } from 'react';
 
 // Componentes
 import HeaderNavbar from './components/HeaderNavbar';
@@ -15,7 +15,8 @@ import ClosedStoreBar from './components/ClosedStoreBar';
 import PaymentReturnModal from './components/PaymentReturnModal';
 import Toast from './components/Toast';
 import Footer from './components/Footer';
-import AdminDashboard from './components/admin/AdminDashboard';
+// El panel se descarga recién cuando alguien entra al admin (la tienda carga más liviana)
+const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
 import CookieBanner from './components/CookieBanner';
 
 // Datos y utilidades
@@ -468,6 +469,13 @@ export default function App() {
 
       {isAdminView ? (
         <main className="flex-1 bg-[#f2eee2]">
+          <Suspense
+            fallback={
+              <div className="min-h-[60vh] grid place-items-center text-xs font-bold uppercase tracking-wider text-[#083821]/60">
+                Cargando panel…
+              </div>
+            }
+          >
           <AdminDashboard
             products={sortedProducts}
             onRefreshProducts={handleProductListUpdate}
@@ -485,6 +493,7 @@ export default function App() {
             onApplySettings={applySettings}
             onExitAdmin={() => setIsAdminView(false)}
           />
+          </Suspense>
         </main>
       ) : (
         <main className="flex-1 bg-[#f2eee2]">

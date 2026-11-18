@@ -137,7 +137,8 @@ export function Badge({ className = '', children }) {
 }
 
 export function money(value) {
-  return `$${Number(value || 0).toLocaleString('es-AR')}`;
+  const n = Number(value) || 0;
+  return `${n < 0 ? '−' : ''}$${Math.abs(n).toLocaleString('es-AR')}`;
 }
 
 const timeFormatter = new Intl.DateTimeFormat('es-AR', { timeZone: STORE_TIMEZONE, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });

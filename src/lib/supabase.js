@@ -313,6 +313,38 @@ export function adminExportOrders(from, to) {
 }
 
 // =========================================================================
+// GASTOS, DATOS FISCALES Y CLIENTES (panel)
+// =========================================================================
+export function adminGetFiscal() {
+  return adminRpc('santos_admin_get_fiscal');
+}
+
+export function adminSaveFiscal(patch) {
+  return adminRpc('santos_admin_save_fiscal', { p_patch: patch });
+}
+
+// from / to en formato "AAAA-MM-DD" (ambos incluidos)
+export function adminListExpenses(from, to) {
+  return adminRpc('santos_admin_list_expenses', { p_from: from, p_to: to });
+}
+
+export function adminUpsertExpense(expense) {
+  return adminRpc('santos_admin_upsert_expense', { p_expense: expense });
+}
+
+export function adminDeleteExpense(id) {
+  return adminRpc('santos_admin_delete_expense', { p_id: id });
+}
+
+export function adminFiscalSummary(year, month) {
+  return adminRpc('santos_admin_fiscal_summary', { p_year: year, p_month: month });
+}
+
+export function adminCustomers(filter = {}) {
+  return adminRpc('santos_admin_customers', { p_filter: filter });
+}
+
+// =========================================================================
 // MERCADO PAGO (Edge Function "mercadopago")
 // =========================================================================
 const FUNCTION_ERRORS = {
