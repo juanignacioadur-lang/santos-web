@@ -391,7 +391,7 @@ function MpLinkForm({
           type="url"
           value={siteUrl}
           onChange={(e) => setSiteUrl(e.target.value)}
-          placeholder="https://santos-web.pages.dev"
+          placeholder="https://santosfood.club/"
           className={inputClass}
         />
       </div>
