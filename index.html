@@ -11,7 +11,7 @@
     <meta name="description" content="Pedí online en SANTOS Food Club (Villa Carlos Paz). Lomitos bien cargados, burgers, pizzas caseras, empanadas y papas fritas calientes. Delivery y Take Away." />
     <meta name="keywords" content="santos, santos lomiteria, santos food club, santosfood.club, lomos villa carlos paz, burgers, pizzas, empanadas, delivery carlos paz, comida casera" />
     <meta name="author" content="SANTOS Food Club" />
-    <meta name="robots" content="index, follow" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
     <link rel="canonical" href="https://santosfood.club/" />
 
     <!-- =====================================================================
@@ -37,8 +37,9 @@
     <meta name="twitter:description" content="Lomitos, Burgers, Pizzas y Empanadas. ¡Hacé tu pedido online directo a cocina!" />
     <meta name="twitter:image" content="https://santosfood.club/og-santos.jpg" />
 
-    <!--SCHEMA / MINIATURA EXTRA PARA WHATSAPP -->
+    <!-- SCHEMA / MINIATURA EXTRA PARA WHATSAPP & GOOGLE SEARCH -->
     <link rel="image_src" href="https://santosfood.club/og-santos.jpg" />
+    <meta name="thumbnail" content="https://santosfood.club/santos-square.jpg" />
 
     <!-- INTEGRACIÓN MÓVIL APPLE / ANDROID -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -49,12 +50,11 @@
     <!-- THEME COLOR -->
     <meta name="theme-color" content="#f2eee2" />
 
-    <!-- FAVICON DE PESTAÑA: Cuadrado verde #083821 con la "S" blanca en cursiva retro estilo el logo Santos -->
     <!-- FAVICON OFICIAL PARA GOOGLE SEARCH & NAVEGADORES (Archivos físicos en /public) -->
- <link rel="icon" type="image/png" sizes="192x192" href="/favicon.png" />
- <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
- <link rel="shortcut icon" href="/favicon.png" />
- <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon.png" />
+    <link rel="shortcut icon" href="/favicon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 
     <!-- TIPOGRAFÍAS: Barlow Condensed (display) + Plus Jakarta Sans (cuerpo) + Pacifico (script) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -88,8 +88,11 @@
         "name": "Santos — Lomitería & Pizzería | Santos Food Club",
         "alternateName": ["Santos Lomitería", "Santos Food Club", "Santos Carlos Paz"],
         "url": "https://santosfood.club/",
-        "logo": "https://santosfood.club/og-santos.jpg",
-        "image": "https://santosfood.club/og-santos.jpg",
+        "logo": "https://santosfood.club/santos-square.jpg",
+        "image": [
+          "https://santosfood.club/santos-square.jpg",
+          "https://santosfood.club/og-santos.jpg"
+        ],
         "description": "Santos — Lomitería de barrio en Villa Carlos Paz. Lomitos caseros, hamburguesas, pizzas, empanadas y papas fritas. Pedí online en el local, para llevar o a domicilio.",
         "telephone": "+543541277289",
         "priceRange": "$$",
